@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# StewardshipAI Environment Template
+# Copy this to setup_env.sh and fill in your values
+# Usage: source setup_env.sh
+
+export GCP_PROJECT_ID="YOUR_PROJECT_ID"
+export GCP_LOCATION="us-south1"
+export GCP_RAG_CORPUS_ID="projects/YOUR_PROJECT_ID/locations/us-south1/ragCorpora/YOUR_CORPUS_ID"
+
+# Optional: Set API Key if not using ADC
+# export GOOGLE_CLOUD_API_KEY="your-api-key"
+
+echo "StewardshipAI environment variables populated."
