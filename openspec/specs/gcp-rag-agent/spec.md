@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: GCP RAG Corpus Integration
-The system SHALL integrate with the specified GCP Vertex AI RAG corpus to retrieve relevant document segments for grounding.
+The system SHALL integrate with any valid Vertex AI RAG corpus provided through environment-driven configuration, which may include paths provided by IaC output.
 
 #### Scenario: Successful Connection to RAG Corpus
-- **WHEN** the agent is initialized with a valid RAG corpus path (e.g., provided via environment variable `GCP_RAG_CORPUS`)
+- **WHEN** the agent is initialized with a RAG corpus path provided by the IaC output
 - **THEN** it SHALL establish a valid connection to the Vertex AI RAG engine.
 
 ### Requirement: Source-Grounded Responses
@@ -27,3 +27,14 @@ Every claim made in the agent's response MUST be followed by a citation to the s
 #### Scenario: Correct Citation Formatting
 - **WHEN** the agent generates a response with multiple claims
 - **THEN** each claim SHALL be followed by a reference to the source document or segment used.
+
+### Requirement: Cost-Optimized Context Strategy
+The agent SHALL support a conditional pivot between "Managed RAG" and "Long Context" retrieval based on cost and scale constraints.
+
+#### Scenario: Pivot to Long Context on Cost Threshold
+- **WHEN** the "Managed RAG" (Spanner-backed) infrastructure exceeds the prototype budget
+- **THEN** the system SHALL support an alternative retrieval mode that leverages Gemini's Long Context window (pasting documents directly into the prompt) to minimize "idle" hourly infrastructure costs.
+
+#### Scenario: Scale-Based Retrieval Selection
+- **WHEN** the total document knowledge base is small enough to fit within the model's context window (e.g., < 1M tokens)
+- **THEN** the agent SHALL prioritize the "Long Context" approach to reduce latency and eliminate RAG database costs.
