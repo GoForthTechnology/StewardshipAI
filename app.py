@@ -2,15 +2,33 @@ import streamlit as st
 from rag_agent import GCPRagAgent
 import os
 from typing import List
+import firebase_admin
+from firebase_admin import auth, credentials
+from config import get_config
 
 # --- Configuration & Auth ---
-# In a real Firebase integration, these would be retrieved via Firebase SDK/Redirect
-# For this implementation, we simulate the auth state.
-AUTHORIZED_EMAILS = os.environ.get("AUTHORIZED_EMAILS", "").split(",")
+config = get_config()
 
-def is_authorized(email: str) -> bool:
-    """Checks if the user email is in the allow-list."""
-    return email in AUTHORIZED_EMAILS
+# Initialize Firebase Admin SDK
+if not firebase_admin._apps:
+    # Firebase ID tokens use the Project ID (slug) for the 'aud' claim.
+    # If the user provided a Project Number, we try to extract the slug from the auth domain.
+    fb_project_id = config.project_id
+    if fb_project_id.isdigit() and config.firebase_auth_domain:
+        fb_project_id = config.firebase_auth_domain.split('.')[0]
+    
+    firebase_admin.initialize_app(options={
+        'projectId': fb_project_id
+    })
+
+def verify_token(id_token: str):
+    """Verifies the Firebase ID Token and returns user info."""
+    try:
+        decoded_token = auth.verify_id_token(id_token)
+        return decoded_token
+    except Exception as e:
+        st.error(f"Authentication Failed: {e}")
+        return None
 
 # Page configuration
 st.set_page_config(page_title="StewardshipAI Research Assistant", page_icon="🤖")
@@ -28,17 +46,44 @@ st.markdown("""
 # --- Authentication UI ---
 if "user_email" not in st.session_state:
     st.title("🔐 Authentication Required")
-    st.info("Please sign in with your authorized Google account to access the research agent.")
+    st.info("Please sign in with your Google account to access the research agent.")
     
-    # Placeholder for Firebase Google Login Button
-    # In practice, this would trigger the Firebase Auth flow
-    email_input = st.text_input("Enter your email (Simulation for Auth Flow):")
-    if st.button("Sign In"):
-        if is_authorized(email_input):
-            st.session_state.user_email = email_input
-            st.rerun()
+    # Custom component for Firebase Google SSO
+    from fb_streamlit_auth import fb_streamlit_auth
+    
+    auth_result = fb_streamlit_auth(
+        config.firebase_api_key or "",
+        config.firebase_auth_domain or "",
+        config.project_id or "",
+        config.firebase_database_url or "",
+        config.firebase_storage_bucket or "",
+        config.firebase_messaging_sender_id or "",
+        config.firebase_app_id or "",
+        config.firebase_measurement_id or ""
+    )
+    
+    if auth_result:
+        # Debug: Print keys to terminal to help diagnose if token is missing
+        # print(f"DEBUG: auth_result keys: {list(auth_result.keys())}")
+        
+        # The token is often nested in stsTokenManager for this component
+        id_token = auth_result.get("idToken")
+        if not id_token:
+            # Try common fallback locations in the serialized Firebase user object
+            sts = auth_result.get("stsTokenManager")
+            if isinstance(sts, dict):
+                id_token = sts.get("accessToken")
+            if not id_token:
+                id_token = auth_result.get("accessToken")
+
+        if id_token:
+            user_info = verify_token(id_token)
+            
+            if user_info:
+                st.session_state.user_email = user_info.get("email")
+                st.rerun()
         else:
-            st.error("Access Denied: Your email is not in the authorized allow-list.")
+            st.error("Authentication Error: Token not found in login response. Please check terminal logs.")
     st.stop()
 
 # --- Main App Interface ---
@@ -80,7 +125,7 @@ if prompt := st.chat_input("What would you like to know?"):
         
         try:
             # Generate response stream
-            response_stream = st.session_state.agent.generate_response(prompt)
+            response_stream = st.session_state.agent.generate_response(prompt, st.session_state.user_email)
             
             for chunk in response_stream:
                 if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:

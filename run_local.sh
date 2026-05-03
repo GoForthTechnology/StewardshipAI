@@ -11,14 +11,7 @@ else
     exit 1
 fi
 
-# 2. Check for AUTHORIZED_EMAILS
-if [ -z "$AUTHORIZED_EMAILS" ]; then
-    echo "Warning: AUTHORIZED_EMAILS is not set. You will be locked out of the UI."
-    read -p "Enter an authorized email to use for this session: " AUTH_EMAIL
-    export AUTHORIZED_EMAILS=$AUTH_EMAIL
-fi
-
-# 3. Define local ADC path
+# 2. Define local ADC path
 ADC_PATH="$HOME/.config/gcloud/application_default_credentials.json"
 
 if [ ! -f "$ADC_PATH" ]; then
@@ -36,9 +29,16 @@ echo "---------------------------------------"
 docker run -it --rm \
   -p 8080:8080 \
   -e GCP_PROJECT_ID="$GCP_PROJECT_ID" \
+  -e GOOGLE_CLOUD_PROJECT="$GCP_PROJECT_ID" \
   -e GCP_LOCATION="$GCP_LOCATION" \
   -e GCP_RAG_CORPUS_ID="$GCP_RAG_CORPUS_ID" \
-  -e AUTHORIZED_EMAILS="$AUTHORIZED_EMAILS" \
+  -e FIREBASE_API_KEY="$FIREBASE_API_KEY" \
+  -e FIREBASE_AUTH_DOMAIN="$FIREBASE_AUTH_DOMAIN" \
+  -e FIREBASE_DATABASE_URL="$FIREBASE_DATABASE_URL" \
+  -e FIREBASE_STORAGE_BUCKET="$FIREBASE_STORAGE_BUCKET" \
+  -e FIREBASE_MESSAGING_SENDER_ID="$FIREBASE_MESSAGING_SENDER_ID" \
+  -e FIREBASE_APP_ID="$FIREBASE_APP_ID" \
+  -e FIREBASE_MEASUREMENT_ID="$FIREBASE_MEASUREMENT_ID" \
   -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/adc.json \
   -v "$ADC_PATH":/tmp/keys/adc.json:ro \
   stewardship-ai

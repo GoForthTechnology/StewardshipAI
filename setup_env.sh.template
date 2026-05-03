@@ -4,9 +4,18 @@
 # Copy this to setup_env.sh and fill in your values
 # Usage: source setup_env.sh
 
-export GCP_PROJECT_ID="YOUR_PROJECT_ID"
+export GCP_PROJECT_ID="your-project-id" # Use the alphanumeric slug (e.g., stewardship-ai)
 export GCP_LOCATION="us-south1"
-export GCP_RAG_CORPUS_ID="projects/YOUR_PROJECT_ID/locations/us-south1/ragCorpora/YOUR_CORPUS_ID"
+export GCP_RAG_CORPUS_ID="projects/640385779911/locations/us-south1/ragCorpora/YOUR_CORPUS_ID" # Use project number here
+
+# Firebase Auth Configuration (for Local Testing)
+export FIREBASE_API_KEY="YOUR_FIREBASE_API_KEY"
+export FIREBASE_AUTH_DOMAIN="YOUR_PROJECT_ID.firebaseapp.com"
+export FIREBASE_DATABASE_URL=""
+export FIREBASE_STORAGE_BUCKET="YOUR_PROJECT_ID.appspot.com"
+export FIREBASE_MESSAGING_SENDER_ID=""
+export FIREBASE_APP_ID=""
+export FIREBASE_MEASUREMENT_ID=""
 
 # Optional: Set API Key if not using ADC
 # export GOOGLE_CLOUD_API_KEY="your-api-key"

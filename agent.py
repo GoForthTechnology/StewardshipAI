@@ -15,7 +15,7 @@ def main():
     print(f"Querying RAG Agent with prompt: {prompt}\n")
     
     try:
-        response_stream = agent.generate_response(prompt)
+        response_stream = agent.generate_response(prompt, user_email="cli-user@stewardship.local")
         for chunk in response_stream:
             if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
                 print(chunk.text, end="", flush=True)

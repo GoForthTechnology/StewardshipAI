@@ -3,3 +3,5 @@ streamlit
 pydantic
 firebase-admin
 google-auth
+fb-streamlit-auth
+pytest

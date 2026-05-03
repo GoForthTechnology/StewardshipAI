@@ -4,6 +4,13 @@ import os
 from typing import Optional, AsyncGenerator
 from config import get_config
 
+import logging
+from datetime import datetime
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("stewardship-ai")
+
 SYSTEM_INSTRUCTION = """You are a strict research assistant. Your goal is to answer questions using ONLY the information contained in the provided sources. Use the following rules for all responses:
 
 Source Lockdown: Do not use any outside knowledge, general training data, or external facts not explicitly stated in the uploaded documents.
@@ -14,7 +21,7 @@ Citations: Every claim you make must be followed by a citation to the specific s
 
 No Hallucination: If the sources are ambiguous, reflect that ambiguity rather than interpreting based on external context.
 
-Do you understand these constraints? Please confirm before we begin."""
+User Identity: You are currently assisting user: {user_email}. All responses are logged for stewardship auditing."""
 
 class GCPRagAgent:
     def __init__(self, model: str = "gemini-2.5-flash"):
@@ -31,8 +38,10 @@ class GCPRagAgent:
             api_key=self.config.api_key,
         )
 
-    def _get_generate_content_config(self, rag_corpus_name: Optional[str] = None) -> types.GenerateContentConfig:
+    def _get_generate_content_config(self, user_email: str, rag_corpus_name: Optional[str] = None) -> types.GenerateContentConfig:
         corpus_name = rag_corpus_name or self.config.rag_corpus_id
+        
+        system_instruction_text = SYSTEM_INSTRUCTION.format(user_email=user_email)
         
         tools = [
             types.Tool(
@@ -59,11 +68,14 @@ class GCPRagAgent:
                 types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF")
             ],
             tools=tools,
-            system_instruction=[types.Part.from_text(text=SYSTEM_INSTRUCTION)],
+            system_instruction=[types.Part.from_text(text=system_instruction_text)],
         )
 
-    def generate_response(self, prompt: str, rag_corpus_name: Optional[str] = None):
-        config = self._get_generate_content_config(rag_corpus_name)
+    def generate_response(self, prompt: str, user_email: str, rag_corpus_name: Optional[str] = None):
+        """Generates a response from the RAG agent and logs the interaction."""
+        logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Prompt: {prompt}")
+        
+        config = self._get_generate_content_config(user_email, rag_corpus_name)
         contents = [
             types.Content(
                 role="user",

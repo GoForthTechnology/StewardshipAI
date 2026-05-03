@@ -37,3 +37,14 @@ variable "container_image" {
   type        = string
   default     = "gcr.io/cloudrun/hello" # Placeholder until first build
 }
+
+variable "firebase_api_key" {
+  description = "The Firebase API Key for frontend authentication"
+  type        = string
+  sensitive   = true
+}
+
+variable "firebase_auth_domain" {
+  description = "The Firebase Auth Domain for frontend authentication"
+  type        = string
+}

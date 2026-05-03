@@ -40,6 +40,33 @@ resource "google_project_iam_member" "ui_ai_user" {
   member  = "serviceAccount:${google_service_account.ui_service_account.email}"
 }
 
+resource "google_project_service" "identity_platform" {
+  project = var.project_id
+  service = "identitytoolkit.googleapis.com"
+}
+
+resource "google_identity_platform_config" "default" {
+  project = var.project_id
+  
+  authorized_domains = [
+    "localhost",
+    "${var.project_id}.firebaseapp.com",
+    "${var.project_id}.web.app",
+  ]
+
+  depends_on = [google_project_service.identity_platform]
+}
+
+resource "google_identity_platform_default_supported_idp_config" "google_idp" {
+  project    = var.project_id
+  enabled    = true
+  idp_id     = "google.com"
+  client_id  = "PLACEHOLDER_CLIENT_ID" # This usually comes from the OAuth consent screen
+  client_secret = "PLACEHOLDER_CLIENT_SECRET"
+  
+  depends_on = [google_identity_platform_config.default]
+}
+
 resource "google_cloud_run_v2_service" "ui_service" {
   name     = var.service_name
   location = var.region
@@ -61,6 +88,14 @@ resource "google_cloud_run_v2_service" "ui_service" {
       env {
         name  = "GCP_RAG_CORPUS_ID"
         value = google_vertex_ai_rag_corpus.stewardship_corpus.name
+      }
+      env {
+        name  = "FIREBASE_API_KEY"
+        value = var.firebase_api_key
+      }
+      env {
+        name  = "FIREBASE_AUTH_DOMAIN"
+        value = var.firebase_auth_domain
       }
     }
   }
