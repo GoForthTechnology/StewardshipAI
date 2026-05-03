@@ -15,6 +15,16 @@ def is_authorized(email: str) -> bool:
 # Page configuration
 st.set_page_config(page_title="StewardshipAI Research Assistant", page_icon="🤖")
 
+# --- UI Customization ---
+# Hide the Streamlit "Deploy" button and header menu
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+    """, unsafe_allow_html=True)
+
 # --- Authentication UI ---
 if "user_email" not in st.session_state:
     st.title("🔐 Authentication Required")
