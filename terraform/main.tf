@@ -28,3 +28,49 @@ resource "google_storage_bucket_iam_member" "rag_agent_reader" {
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-vertex-rag.iam.gserviceaccount.com"
 }
+
+resource "google_service_account" "ui_service_account" {
+  account_id   = "stewardship-ai-ui-sa"
+  display_name = "StewardshipAI UI Service Account"
+}
+
+resource "google_project_iam_member" "ui_ai_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.ui_service_account.email}"
+}
+
+resource "google_cloud_run_v2_service" "ui_service" {
+  name     = var.service_name
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = google_service_account.ui_service_account.email
+    containers {
+      image = var.container_image
+      
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "GCP_LOCATION"
+        value = var.region
+      }
+      env {
+        name  = "GCP_RAG_CORPUS_ID"
+        value = google_vertex_ai_rag_corpus.stewardship_corpus.name
+      }
+    }
+  }
+
+  depends_on = [google_project_iam_member.ui_ai_user]
+}
+
+resource "google_cloud_run_v2_service_iam_member" "noauth" {
+  location = google_cloud_run_v2_service.ui_service.location
+  name     = google_cloud_run_v2_service.ui_service.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}

@@ -1,0 +1,5 @@
+google-genai
+streamlit
+pydantic
+firebase-admin
+google-auth

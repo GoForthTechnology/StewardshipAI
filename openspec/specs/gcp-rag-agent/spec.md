@@ -38,3 +38,10 @@ The agent SHALL support a conditional pivot between "Managed RAG" and "Long Cont
 #### Scenario: Scale-Based Retrieval Selection
 - **WHEN** the total document knowledge base is small enough to fit within the model's context window (e.g., < 1M tokens)
 - **THEN** the agent SHALL prioritize the "Long Context" approach to reduce latency and eliminate RAG database costs.
+
+### Requirement: User-Identified Interaction
+The agent SHALL support associating queries with a verified user identity (email) for audit logging and session persistence.
+
+#### Scenario: Logging Authenticated Query
+- **WHEN** a query is submitted through the web UI
+- **THEN** the agent SHALL receive the user's email address and include it in the interaction logs.
