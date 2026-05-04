@@ -117,21 +117,6 @@ import { DiscoveryGridComponent } from '../discovery-grid/discovery-grid';
                    class="px-5 py-4 text-[15px] leading-relaxed border border-diocese-blue/5"
                  >
                    {{ msg.content }}
-
-                   <!-- Citations -->
-                   <div *ngIf="msg.citations && msg.citations.length > 0" class="mt-4 pt-4 border-t border-diocese-blue/5">
-                      <p class="text-[10px] uppercase font-bold tracking-tighter text-diocese-blue/40 mb-2">Sources:</p>
-                      <div class="flex flex-wrap gap-2">
-                        <a 
-                          *ngFor="let source of msg.citations" 
-                          [href]="source.uri" 
-                          target="_blank"
-                          class="text-[11px] px-2 py-1 bg-diocese-blue/5 rounded hover:bg-diocese-gold hover:text-diocese-blue transition-colors flex items-center gap-1"
-                        >
-                          📖 {{ source.title || 'Source' }}
-                        </a>
-                      </div>
-                   </div>
                  </div>
                </div>
              </div>
@@ -226,7 +211,7 @@ export class PortalComponent implements AfterViewChecked {
     
     try {
       // Initialize assistant message
-      this.messages.update(msgs => [...msgs, { role: 'assistant', content: '', citations: [] }]);
+      this.messages.update(msgs => [...msgs, { role: 'assistant', content: '' }]);
       
       const stream = this.chatService.streamChat(prompt, this.stewardship.persona());
       
@@ -238,11 +223,6 @@ export class PortalComponent implements AfterViewChecked {
           if (lastMsg && lastMsg.role === 'assistant') {
             if (data.text) {
               lastMsg.content += data.text;
-            }
-            if (data.citations) {
-              lastMsg.citations = [...(lastMsg.citations || []), ...data.citations];
-              // Deduplicate citations by URI
-              lastMsg.citations = Array.from(new Map(lastMsg.citations.map(c => [c.uri, c])).values());
             }
           }
           return [...msgs];

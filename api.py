@@ -86,18 +86,6 @@ async def stream_agent_response(prompt: str, user_email: str, persona: str):
             if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
                 text = chunk.text
                 yield f"data: {json.dumps({'text': text})}\n\n"
-            
-            if chunk.candidates and chunk.candidates[0].grounding_metadata:
-                metadata = chunk.candidates[0].grounding_metadata
-                if metadata.grounding_chunks:
-                    chunks = []
-                    for gc in metadata.grounding_chunks:
-                        if gc.web:
-                            chunks.append({"title": gc.web.title, "uri": gc.web.uri})
-                        elif gc.retrieved_context:
-                            chunks.append({"title": gc.retrieved_context.title, "uri": gc.retrieved_context.uri})
-                    if chunks:
-                        yield f"data: {json.dumps({'citations': chunks})}\n\n"
     except Exception as e:
         logger.error(f"Error in stream_agent_response: {e}")
         yield f"data: {json.dumps({'error': str(e)})}\n\n"

@@ -5,7 +5,6 @@ import { environment } from '../../environments/environment';
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
-  citations?: any[];
 }
 
 @Injectable({

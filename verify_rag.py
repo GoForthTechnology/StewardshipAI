@@ -34,8 +34,8 @@ if __name__ == "__main__":
     # Test 2: Outside scope (Pastoral Refusal Check)
     test_agent("What is the weather in Tokyo today?", "Pastoral Refusal")
     
-    # Test 3: Citation check
-    test_agent("List three specific facts from the documents and provide citations for each.", "Citation Check")
+    # Test 3: Knowledge check
+    test_agent("List three specific facts from the documents about stewardship in the diocese.", "Knowledge Check")
 
     # Test 4: Persona Shift (Priest)
     test_agent("How can I inspire my parish for stewardship?", "Persona: Priest", persona="priest")

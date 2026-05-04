@@ -10,9 +10,9 @@ The system SHALL integrate with any valid Vertex AI RAG corpus provided through 
 ### Requirement: Source-Grounded Responses
 The agent MUST answer questions using ONLY the information contained in the provided RAG sources.
 
-#### Scenario: Grounded Answer with Citations
+#### Scenario: Grounded Answer without Citations
 - **WHEN** a user asks a question that can be answered by the corpus
-- **THEN** the agent SHALL provide a response based solely on the corpus and include citations for every claim.
+- **THEN** the agent SHALL provide a response based solely on the corpus and SHALL NOT include explicit citations.
 
 ### Requirement: Strict Source Lockdown
 The agent SHALL NOT use outside knowledge or general training data to answer questions.
@@ -21,19 +21,12 @@ The agent SHALL NOT use outside knowledge or general training data to answer que
 - **WHEN** a user asks a question about a topic not covered in the RAG corpus
 - **THEN** the agent SHALL state a helpful, pastoral refusal message such as: "I'm sorry, but our diocese's official stewardship resources don't cover that specific topic. You may want to reach out to the Office of Stewardship for further guidance."
 
-### Requirement: Citation Enforcement
-Every claim made in the agent's response MUST be followed by a citation to the specific source(s) used.
-
-#### Scenario: Correct Citation Formatting
-- **WHEN** the agent generates a response with multiple claims
-- **THEN** each claim SHALL be followed by a reference to the source document or segment used.
-
 ### Requirement: Stewardship Guide Persona
 The agent SHALL adopt a "Stewardship Guide" persona that is warm, encouraging, and pastoral in tone.
 
-#### Scenario: Pastoral Tone in Responses
+#### Scenario: Conversational Tone in Responses
 - **WHEN** the agent generates a response
-- **THEN** it SHALL use welcoming language and emphasize the spiritual mission of stewardship while adhering to the grounding requirements.
+- **THEN** it SHALL use welcoming, conversational language and weave information from the documents naturally into the dialogue without structured evidence markers or citations.
 
 ### Requirement: Role-Based Response Tailoring
 The agent SHALL adjust its tone and content focus based on the user's selected persona (Priest vs. Parishioner).
