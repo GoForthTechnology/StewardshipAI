@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-diocese-blue: #1a3a5a;
+  --color-diocese-cream: #fcfaf5;
+  --color-diocese-gold: #d4af37;
+}
+
+@layer base {
+  body {
+    @apply bg-diocese-cream text-diocese-blue font-sans;
+  }
+}

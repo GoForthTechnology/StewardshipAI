@@ -39,6 +39,7 @@ docker run -it --rm \
   -e FIREBASE_MESSAGING_SENDER_ID="$FIREBASE_MESSAGING_SENDER_ID" \
   -e FIREBASE_APP_ID="$FIREBASE_APP_ID" \
   -e FIREBASE_MEASUREMENT_ID="$FIREBASE_MEASUREMENT_ID" \
+  -e DIOCESE_NAME="$DIOCESE_NAME" \
   -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/adc.json \
   -v "$ADC_PATH":/tmp/keys/adc.json:ro \
   stewardship-ai

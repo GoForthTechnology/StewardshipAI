@@ -1,0 +1,60 @@
+import { Injectable, inject } from '@angular/core';
+import { Auth } from '@angular/fire/auth';
+import { environment } from '../../environments/environment';
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  citations?: any[];
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ChatService {
+  private auth = inject(Auth);
+
+  async *streamChat(prompt: string, persona: string) {
+    const currentUser = this.auth.currentUser;
+    if (!currentUser) throw new Error('Not authenticated');
+
+    const token = await currentUser.getIdToken();
+
+    const response = await fetch(`${environment.apiUrl}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ prompt, persona })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No readable stream in response');
+
+    const decoder = new TextDecoder();
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            yield data;
+          } catch (e) {
+            console.error('Error parsing SSE chunk:', e);
+          }
+        }
+      }
+    }
+  }
+}

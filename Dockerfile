@@ -1,14 +1,21 @@
-# Use a slim Python image
-FROM python:3.11-slim
+# --- Stage 1: Build the Angular Frontend ---
+FROM node:20-slim AS frontend-build
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm install --legacy-peer-deps
+COPY frontend/ ./
+# Tailwind v4 requires an explicit build step if the bundler integration fails
+RUN npx @tailwindcss/cli -i src/styles.css -o src/styles.compiled.css
+RUN npx ng build --configuration production
 
-# Set working directory
+# --- Stage 2: Build the FastAPI Backend ---
+FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
@@ -18,12 +25,15 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Expose Streamlit port
+# Copy the built frontend from Stage 1
+COPY --from=frontend-build /app/frontend/dist/frontend/browser /app/static
+
+# Expose port (Cloud Run default)
 EXPOSE 8080
 
-# Configure Streamlit to run on port 8080 (Cloud Run default)
-ENV STREAMLIT_SERVER_PORT=8080
-ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
+# Environment variables
+ENV PORT=8080
 
-# Run the application
-ENTRYPOINT ["streamlit", "run", "app.py"]
+# Run the application with Uvicorn
+# We will serve static files from FastAPI in api.py
+ENTRYPOINT ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]

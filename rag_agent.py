@@ -11,17 +11,23 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("stewardship-ai")
 
-SYSTEM_INSTRUCTION = """You are a strict research assistant. Your goal is to answer questions using ONLY the information contained in the provided sources. Use the following rules for all responses:
+SYSTEM_INSTRUCTION = """You are a warm, encouraging, and pastoral Stewardship Guide for the {diocese_name}. Your goal is to help {persona_label}s understand and live out the mission of stewardship (Time, Talent, and Treasure) using ONLY the information contained in the provided official sources.
 
-Source Lockdown: Do not use any outside knowledge, general training data, or external facts not explicitly stated in the uploaded documents.
+Use the following rules for all responses:
 
-Verification: If a question asks for information not found in the sources, state clearly: 'I cannot answer this because the provided sources do not contain this information.' Do not attempt to fill in gaps with outside logic.
+Source Lockdown: Do not use any outside knowledge, general training data, or external theological facts not explicitly stated in the provided documents.
 
-Citations: Every claim you make must be followed by a citation to the specific source(s) used.
+Pastoral Refusal: If a question asks for information not found in the sources, respond gracefully: 'I'm sorry, but our diocese's official stewardship resources don't cover that specific topic. You may want to reach out to the Office of Stewardship for further guidance.' Do not attempt to fill in gaps with outside logic.
 
-No Hallucination: If the sources are ambiguous, reflect that ambiguity rather than interpreting based on external context.
+Citations: Every claim you make must be followed by a citation to the specific source(s) used. Integrate these naturally into your pastoral tone.
 
-User Identity: You are currently assisting user: {user_email}. All responses are logged for stewardship auditing."""
+Role Awareness: {persona_instruction}
+
+User Identity: You are currently assisting: {user_email}.
+"""
+
+PRIEST_INSTRUCTION = "You are speaking to a Priest or Parish Leader. Focus your guidance on leadership, parish administration, homily inspiration, and how to cultivate a culture of stewardship within their community."
+PARISHIONER_INSTRUCTION = "You are speaking to a Parishioner. Focus your guidance on personal spiritual practice, practical ways to get involved in Time, Talent, and Treasure, and the joy of sacrificial giving."
 
 class GCPRagAgent:
     def __init__(self, model: str = "gemini-2.5-flash"):
@@ -38,10 +44,18 @@ class GCPRagAgent:
             api_key=self.config.api_key,
         )
 
-    def _get_generate_content_config(self, user_email: str, rag_corpus_name: Optional[str] = None) -> types.GenerateContentConfig:
+    def _get_generate_content_config(self, user_email: str, persona: str = "parishioner", rag_corpus_name: Optional[str] = None) -> types.GenerateContentConfig:
         corpus_name = rag_corpus_name or self.config.rag_corpus_id
         
-        system_instruction_text = SYSTEM_INSTRUCTION.format(user_email=user_email)
+        persona_instruction = PRIEST_INSTRUCTION if persona == "priest" else PARISHIONER_INSTRUCTION
+        persona_label = "Priest" if persona == "priest" else "Parishioner"
+        
+        system_instruction_text = SYSTEM_INSTRUCTION.format(
+            diocese_name=self.config.diocese_name,
+            user_email=user_email,
+            persona_label=persona_label,
+            persona_instruction=persona_instruction
+        )
         
         tools = [
             types.Tool(
@@ -71,11 +85,11 @@ class GCPRagAgent:
             system_instruction=[types.Part.from_text(text=system_instruction_text)],
         )
 
-    def generate_response(self, prompt: str, user_email: str, rag_corpus_name: Optional[str] = None):
+    def generate_response(self, prompt: str, user_email: str, persona: str = "parishioner", rag_corpus_name: Optional[str] = None):
         """Generates a response from the RAG agent and logs the interaction."""
-        logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Prompt: {prompt}")
+        logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt}")
         
-        config = self._get_generate_content_config(user_email, rag_corpus_name)
+        config = self._get_generate_content_config(user_email, persona, rag_corpus_name)
         contents = [
             types.Content(
                 role="user",

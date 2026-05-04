@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Google SSO Authentication
 The system SHALL require users to sign in using their Google account via Firebase Authentication (client-side) before accessing the agent API.
@@ -14,10 +14,3 @@ The system SHALL require users to sign in using their Google account via Firebas
 #### Scenario: Expired or Invalid Token
 - **WHEN** a user provides an expired or malformed JWT token to the backend
 - **THEN** the backend SHALL reject the token (401), and the frontend SHALL redirect the user back to the sign-in flow.
-
-### Requirement: Email Allow-List Enforcement
-The system SHALL only allow access to users whose email addresses are present in the authorized allow-list.
-
-#### Scenario: Blocked Unauthorized User
-- **WHEN** a user signs in with a Google account NOT in the allow-list
-- **THEN** the system SHALL display an "Access Denied" message and prevent interaction with the RAG agent.
