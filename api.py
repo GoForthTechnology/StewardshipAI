@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Security, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, Security, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
@@ -110,16 +110,6 @@ def streamlit_health():
 @app.get("/_stcore/host-config")
 def streamlit_host_config():
     return {"allowedOrigins": ["*"], "useExternalId": False}
-
-@app.websocket("/_stcore/stream")
-async def streamlit_websocket_stream(websocket: WebSocket):
-    """Dummy WebSocket to quiet legacy Streamlit browser tabs."""
-    await websocket.accept()
-    try:
-        while True:
-            await websocket.receive_text()
-    except (WebSocketDisconnect, Exception):
-        pass
 
 if os.path.exists("static"):
     app.mount("/", StaticFiles(directory="static", html=True), name="static")
