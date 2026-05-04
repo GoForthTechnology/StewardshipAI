@@ -5,11 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { StewardshipService, Persona } from '../../services/stewardship';
 import { ChatService, ChatMessage } from '../../services/chat';
 import { DiscoveryGridComponent } from '../discovery-grid/discovery-grid';
+import { MarkdownPipe } from '../../pipes/markdown';
 
 @Component({
   selector: 'app-portal',
   standalone: true,
-  imports: [CommonModule, FormsModule, DiscoveryGridComponent],
+  imports: [CommonModule, FormsModule, DiscoveryGridComponent, MarkdownPipe],
   template: `
     <div class="flex h-screen bg-diocese-cream overflow-hidden">
       <!-- Sidebar -->
@@ -115,8 +116,9 @@ import { DiscoveryGridComponent } from '../discovery-grid/discovery-grid';
                    [class.rounded-tr-none]="msg.role === 'user'"
                    [class.rounded-tl-none]="msg.role === 'assistant'"
                    class="px-5 py-4 text-[15px] leading-relaxed border border-diocese-blue/5"
+                   [class.markdown-content]="msg.role === 'assistant'"
+                   [innerHTML]="msg.content | markdown"
                  >
-                   {{ msg.content }}
                  </div>
                </div>
              </div>

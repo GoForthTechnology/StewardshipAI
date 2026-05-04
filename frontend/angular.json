@@ -25,7 +25,7 @@
               }
             ],
             "styles": [
-              "src/styles.compiled.css"
+              "src/styles.css"
             ]
           },
           "configurations": {
