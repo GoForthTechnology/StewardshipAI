@@ -116,14 +116,20 @@ import { MarkdownPipe } from '../../pipes/markdown';
                    [class.rounded-tr-none]="msg.role === 'user'"
                    [class.rounded-tl-none]="msg.role === 'assistant'"
                    class="px-5 py-4 text-[15px] leading-relaxed border border-diocese-blue/5"
-                   [class.markdown-content]="msg.role === 'assistant'"
-                   [innerHTML]="msg.content | markdown"
                  >
+                   <ng-container *ngIf="msg.role === 'assistant' && !msg.content && pendingResponse()">
+                     <div class="pending-dots">
+                       <div class="pending-dot"></div>
+                       <div class="pending-dot"></div>
+                       <div class="pending-dot"></div>
+                     </div>
+                   </ng-container>
+                   <div *ngIf="msg.content || msg.role === 'user'" [innerHTML]="msg.content | markdown"></div>
                  </div>
                </div>
              </div>
 
-             <!-- Loading State -->
+             <!-- Error or Interrupted State -->
              <div *ngIf="isLoading()" class="flex flex-col items-start max-w-[85%] animate-pulse">
                 <div class="text-[10px] uppercase font-bold tracking-widest text-diocese-blue/30 px-4 mb-1">Guide</div>
                 <div class="px-5 py-4 bg-white rounded-2xl rounded-tl-none border border-diocese-blue/5 italic text-sm text-diocese-blue/40">
@@ -171,6 +177,7 @@ export class PortalComponent implements AfterViewChecked {
   messages = signal<ChatMessage[]>([]);
   currentInput = '';
   isLoading = signal(false);
+  pendingResponse = signal(false);
 
   ngAfterViewChecked() {
     this.scrollToBottom();
@@ -210,6 +217,7 @@ export class PortalComponent implements AfterViewChecked {
     this.messages.update(msgs => [...msgs, { role: 'user', content: prompt }]);
     
     this.isLoading.set(true);
+    this.pendingResponse.set(true);
     
     try {
       // Initialize assistant message
@@ -220,6 +228,9 @@ export class PortalComponent implements AfterViewChecked {
       this.isLoading.set(false);
 
       for await (const data of stream) {
+        if (data.text && this.pendingResponse()) {
+          this.pendingResponse.set(false);
+        }
         this.messages.update(msgs => {
           const lastMsg = msgs[msgs.length - 1];
           if (lastMsg && lastMsg.role === 'assistant') {
@@ -233,6 +244,7 @@ export class PortalComponent implements AfterViewChecked {
     } catch (error) {
       console.error('Chat error:', error);
       this.isLoading.set(false);
+      this.pendingResponse.set(false);
       this.messages.update(msgs => [...msgs, { role: 'assistant', content: 'I encountered an error connecting to our resources. Please try again later.' }]);
     }
   }

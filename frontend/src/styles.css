@@ -11,23 +11,52 @@
     @apply bg-diocese-cream text-diocese-blue font-sans;
   }
 
-  .markdown-content ul {
+  ul {
     @apply list-disc list-outside space-y-2 my-4 pl-6;
   }
 
-  .markdown-content ol {
+  ol {
     @apply list-decimal list-outside space-y-2 my-4 pl-6;
   }
 
-  .markdown-content li {
+  li {
     @apply mb-1;
   }
 
-  .markdown-content p {
+  p {
     @apply mb-4 last:mb-0;
   }
 
-  .markdown-content strong {
+  strong {
     @apply font-bold;
+  }
+
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+    40% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  .pending-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 12px;
+    padding: 4px 0;
+  }
+
+  .pending-dot {
+    width: 5px;
+    height: 5px;
+    background-color: currentColor;
+    border-radius: 50%;
+    animation: dot-bounce 1.4s infinite ease-in-out both;
+  }
+
+  .pending-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .pending-dot:nth-child(3) {
+    animation-delay: 0.4s;
   }
 }
