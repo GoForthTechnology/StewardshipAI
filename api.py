@@ -102,15 +102,6 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
 def health_check():
     return {"status": "healthy"}
 
-# --- Legacy Streamlit Support (to quiet logs from old health checks/browser tabs) ---
-@app.get("/_stcore/health")
-def streamlit_health():
-    return Response(content="ok", media_type="text/plain")
-
-@app.get("/_stcore/host-config")
-def streamlit_host_config():
-    return {"allowedOrigins": ["*"], "useExternalId": False}
-
 if os.path.exists("static"):
     app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
