@@ -8,9 +8,11 @@ from firebase_admin import auth
 from config import get_config
 from rag_agent import GCPRagAgent
 from pydantic import BaseModel
+from typing import Optional, List
 import logging
 import json
 import os
+import asyncio
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -38,6 +40,7 @@ agent = GCPRagAgent()
 class ChatRequest(BaseModel):
     prompt: str
     persona: str = "parishioner"
+    history: Optional[List[dict]] = None
 
 def get_current_user(res: HTTPAuthorizationCredentials = Security(security)):
     """Verifies the Firebase ID Token and returns user info."""
@@ -78,14 +81,23 @@ async def get_frontend_config():
     """
     return Response(content=js_content, media_type="application/javascript")
 
-async def stream_agent_response(prompt: str, user_email: str, persona: str):
+async def stream_agent_response(prompt: str, user_email: str, persona: str, history: Optional[List[dict]] = None):
     """Generator to stream agent response chunks as JSON."""
     try:
-        response_stream = agent.generate_response(prompt, user_email, persona)
-        for chunk in response_stream:
-            if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
-                text = chunk.text
-                yield f"data: {json.dumps({'text': text})}\n\n"
+        async with asyncio.timeout(60):
+            response_stream = await agent.generate_response(
+                prompt=prompt,
+                user_email=user_email,
+                persona=persona,
+                history=history
+            )
+            async for chunk in response_stream:
+                if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
+                    text = chunk.text
+                    yield f"data: {json.dumps({'text': text})}\n\n"
+    except asyncio.TimeoutError:
+        logger.error(f"Generation timed out for user: {user_email}")
+        yield f"data: {json.dumps({'error': 'The request took too long to process. Please try again.'})}\n\n"
     except Exception as e:
         logger.error(f"Error in stream_agent_response: {e}")
         yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -94,7 +106,12 @@ async def stream_agent_response(prompt: str, user_email: str, persona: str):
 async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
     user_email = user.get("email", "unknown")
     return StreamingResponse(
-        stream_agent_response(request.prompt, user_email, request.persona),
+        stream_agent_response(
+            prompt=request.prompt,
+            user_email=user_email,
+            persona=request.persona,
+            history=request.history
+        ),
         media_type="text/event-stream"
     )
 

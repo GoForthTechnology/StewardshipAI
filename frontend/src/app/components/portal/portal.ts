@@ -213,6 +213,9 @@ export class PortalComponent implements AfterViewChecked {
     const prompt = this.currentInput;
     this.currentInput = '';
     
+    // Capture history BEFORE adding current messages
+    const history = [...this.messages()];
+
     // Add user message
     this.messages.update(msgs => [...msgs, { role: 'user', content: prompt }]);
     
@@ -223,7 +226,7 @@ export class PortalComponent implements AfterViewChecked {
       // Initialize assistant message
       this.messages.update(msgs => [...msgs, { role: 'assistant', content: '' }]);
       
-      const stream = this.chatService.streamChat(prompt, this.stewardship.persona());
+      const stream = this.chatService.streamChat(prompt, this.stewardship.persona(), history);
       
       this.isLoading.set(false);
 
@@ -231,6 +234,11 @@ export class PortalComponent implements AfterViewChecked {
         if (data.text && this.pendingResponse()) {
           this.pendingResponse.set(false);
         }
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
         this.messages.update(msgs => {
           const lastMsg = msgs[msgs.length - 1];
           if (lastMsg && lastMsg.role === 'assistant') {
@@ -241,11 +249,27 @@ export class PortalComponent implements AfterViewChecked {
           return [...msgs];
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
       this.isLoading.set(false);
       this.pendingResponse.set(false);
-      this.messages.update(msgs => [...msgs, { role: 'assistant', content: 'I encountered an error connecting to our resources. Please try again later.' }]);
+      
+      let errorMessage = 'I encountered an error connecting to our resources. Please try again later.';
+      
+      if (error.name === 'AbortError') {
+        errorMessage = 'The request took too long to process. Please try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      this.messages.update(msgs => {
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content) {
+          lastMsg.content = errorMessage;
+          return [...msgs];
+        }
+        return [...msgs, { role: 'assistant', content: errorMessage }];
+      });
     }
   }
 }

@@ -1,7 +1,8 @@
 from google import genai
 from google.genai import types
 import os
-from typing import Optional, AsyncGenerator
+import asyncio
+from typing import Optional, AsyncGenerator, List
 from config import get_config
 
 import logging
@@ -46,8 +47,13 @@ class GCPRagAgent:
             api_key=self.config.api_key,
         )
 
-    def _get_generate_content_config(self, user_email: str, persona: str = "parishioner", rag_corpus_name: Optional[str] = None) -> types.GenerateContentConfig:
+    async def _get_generate_content_config(self, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, rag_corpus_name: Optional[str] = None) -> types.GenerateContentConfig:
         corpus_name = rag_corpus_name or self.config.rag_corpus_id
+        
+        # Ensure corpus_name is a string (prevents Pydantic validation errors)
+        if not isinstance(corpus_name, str):
+            logger.error(f"Invalid rag_corpus type: {type(corpus_name)}. Value: {corpus_name}")
+            corpus_name = str(corpus_name)
         
         persona_instruction = PRIEST_INSTRUCTION if persona == "priest" else PARISHIONER_INSTRUCTION
         persona_label = "Priest" if persona == "priest" else "Parishioner"
@@ -86,19 +92,35 @@ class GCPRagAgent:
             system_instruction=[types.Part.from_text(text=system_instruction_text)],
         )
 
-    def generate_response(self, prompt: str, user_email: str, persona: str = "parishioner", rag_corpus_name: Optional[str] = None):
+    async def generate_response(self, prompt: str, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, rag_corpus_name: Optional[str] = None):
         """Generates a response from the RAG agent and logs the interaction."""
         logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt}")
         
-        config = self._get_generate_content_config(user_email, persona, rag_corpus_name)
-        contents = [
+        config = await self._get_generate_content_config(
+            user_email=user_email,
+            persona=persona,
+            history=history,
+            rag_corpus_name=rag_corpus_name
+        )
+        
+        contents = []
+        if history:
+            for msg in history:
+                role = "model" if msg["role"] == "assistant" else "user"
+                contents.append(types.Content(
+                    role=role,
+                    parts=[types.Part.from_text(text=msg["content"])]
+                ))
+        
+        # Add current prompt
+        contents.append(
             types.Content(
                 role="user",
                 parts=[types.Part.from_text(text=prompt)]
             )
-        ]
+        )
         
-        return self.client.models.generate_content_stream(
+        return await self.client.aio.models.generate_content_stream(
             model=self.model,
             contents=contents,
             config=config,

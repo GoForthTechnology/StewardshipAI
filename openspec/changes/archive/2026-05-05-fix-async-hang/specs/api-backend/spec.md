@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: RAG Agent REST API
 The system SHALL expose the RAG agent's chat capabilities via a FastAPI REST endpoint.
@@ -8,12 +8,7 @@ The system SHALL expose the RAG agent's chat capabilities via a FastAPI REST end
 - **THEN** the API SHALL stream the response back from the RAG agent using Server-Sent Events (SSE), ensuring the agent considers the provided history for context.
 - **AND** the API SHALL process this request asynchronously, allowing the server to handle concurrent requests (e.g., health checks) while the stream is active.
 
-### Requirement: API Authentication Middleware
-The API SHALL require a valid Firebase ID token in the `Authorization` header for all requests to protected endpoints.
-
-#### Scenario: Rejecting Unauthenticated Requests
-- **WHEN** a client sends a request without a valid Bearer token
-- **THEN** the API SHALL return a 401 Unauthorized status.
+## ADDED Requirements
 
 ### Requirement: Backend Request Timeout
 The API SHALL enforce a maximum time limit on the total duration of a chat generation request.

@@ -13,47 +13,57 @@ export interface ChatMessage {
 export class ChatService {
   private auth = inject(Auth);
 
-  async *streamChat(prompt: string, persona: string) {
+  async *streamChat(prompt: string, persona: string, history: ChatMessage[] = []) {
     const currentUser = this.auth.currentUser;
     if (!currentUser) throw new Error('Not authenticated');
 
     const token = await currentUser.getIdToken();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const response = await fetch(`${environment.apiUrl}/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ prompt, persona })
-    });
+    try {
+      const response = await fetch(`${environment.apiUrl}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ prompt, persona, history }),
+        signal: controller.signal
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+      clearTimeout(timeoutId);
 
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No readable stream in response');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-    const decoder = new TextDecoder();
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No readable stream in response');
 
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
+      const decoder = new TextDecoder();
       
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            yield data;
-          } catch (e) {
-            console.error('Error parsing SSE chunk:', e);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              yield data;
+            } catch (e) {
+              console.error('Error parsing SSE chunk:', e);
+            }
           }
         }
       }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
     }
   }
 }

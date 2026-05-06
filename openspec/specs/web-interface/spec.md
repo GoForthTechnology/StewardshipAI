@@ -7,6 +7,11 @@ The system SHALL provide a web-based chat interface (built in Angular) allowing 
 - **WHEN** an authenticated user enters a question into the chat input and presses send
 - **THEN** the system SHALL display the user's message and initiate a streaming response from the backend API that focuses exclusively on text content.
 
+#### Scenario: Submitting a Follow-up Query
+- **WHEN** an authenticated user enters a question into the chat input
+- **THEN** the system SHALL send the new question along with the current session's message history to the backend.
+- **AND** the system SHALL update the chat display to include the full conversational history.
+
 ### Requirement: Branded Portal Layout
 The web interface SHALL use a modern component-based layout (Angular) to implement a high-fidelity, responsive design matching the "Catholic Diocese of Wichita" branding and ecclesiastical stewardship theme.
 
@@ -46,3 +51,21 @@ The web interface SHALL display an animated ellipsis ("...") visual feedback whe
 - **WHEN** a user submits a query
 - **THEN** the system SHALL display a chat bubble containing three animated dots that bounce or pulse to indicate the request is being processed.
 - **AND** the animated bubble SHALL disappear once the first chunk of the agent response is received.
+
+### Requirement: Frontend Request Timeout
+The web interface SHALL implement a client-side timeout for chat generation requests to prevent the UI from appearing hung.
+
+#### Scenario: Frontend Request Timeout
+- **WHEN** a chat generation request does not receive a response within 15 seconds
+- **THEN** the interface SHALL abort the request and display a specific timeout error message to the user.
+
+### Requirement: Differentiated Error Feedback
+The web interface SHALL provide specific visual feedback for different types of request failures.
+
+#### Scenario: Displaying Timeout Error
+- **WHEN** a request is aborted due to a timeout
+- **THEN** the system SHALL display a message like "The request took too long. Please try again."
+
+#### Scenario: Displaying Generic Error
+- **WHEN** a request fails due to any other network or server error
+- **THEN** the system SHALL display a message like "I encountered an error connecting to our resources. Please try again later."
