@@ -125,6 +125,10 @@ resource "google_cloud_run_v2_service" "ui_service" {
         value = var.rag_corpus_id
       }
       env {
+        name  = "GCP_MAGISTERIUM_CORPUS_ID"
+        value = var.magisterium_corpus_id
+      }
+      env {
         name  = "FIREBASE_API_KEY"
         value = var.firebase_api_key
       }

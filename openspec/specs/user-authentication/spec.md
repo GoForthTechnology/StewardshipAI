@@ -21,3 +21,10 @@ The system SHALL only allow access to users whose email addresses are present in
 #### Scenario: Blocked Unauthorized User
 - **WHEN** a user signs in with a Google account NOT in the allow-list
 - **THEN** the system SHALL display an "Access Denied" message and prevent interaction with the RAG agent.
+
+### Requirement: Authorized Domain for OAuth
+The custom domain `stewardship.goforthtech.org` MUST be added to the list of authorized domains for Identity Platform to allow OAuth redirects.
+
+#### Scenario: Successful Redirect from Custom Domain
+- **WHEN** a user initiates Google SSO from `https://stewardship.goforthtech.org`
+- **THEN** the Identity Platform SHALL permit the OAuth redirect back to the custom domain upon successful authentication.

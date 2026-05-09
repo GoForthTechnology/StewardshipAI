@@ -6,7 +6,8 @@
 
 export GCP_PROJECT_ID="your-project-id" # REQUIRED: Use the alphanumeric slug (e.g., stewardship-ai), NOT the project number
 export GCP_LOCATION="us-south1"
-export GCP_RAG_CORPUS_ID="projects/640385779911/locations/us-south1/ragCorpora/YOUR_CORPUS_ID" # Note: RAG resource paths use the project number
+export GCP_RAG_CORPUS_ID="projects/640385779911/locations/us-south1/ragCorpora/6917529027641081856"
+export GCP_MAGISTERIUM_CORPUS_ID="" # New corpus for universal doctrine
 
 # Firebase Auth Configuration (for Local Testing)
 export FIREBASE_API_KEY="YOUR_FIREBASE_API_KEY"

@@ -14,6 +14,12 @@ variable "rag_corpus_id" {
   type        = string
 }
 
+variable "magisterium_corpus_id" {
+  description = "The full resource name of the Magisterium RAG corpus"
+  type        = string
+  default     = ""
+}
+
 variable "document_bucket_name" {
   description = "The name of the GCS bucket containing the source documents"
   type        = string

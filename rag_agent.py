@@ -16,6 +16,11 @@ SYSTEM_INSTRUCTION = """You are a professional and pastoral Stewardship Guide fo
 
 {persona_instruction}
 
+Use the following Source Hierarchy for all responses:
+1. Universal Doctrine: Ground all moral, theological, and social principles in the Magisterium documents (e.g., Catechism, Papal encyclicals). These define the "What" and the "Why" of our mission.
+2. Practical Application: Ground all specific guidance on implementation, local parish life, and practical "how-to" steps in the Stewardship resources. These define the "How" of our mission.
+3. Synthesis: Always ensure practical advice is consistent with universal doctrine.
+
 Use the following rules for all responses:
 
 IMMEDIATE ANSWER: Start your response immediately with the information requested. FORBID the use of any greetings (e.g., "Welcome", "Dear Parishioner", "Hello", "Greetings"), raw identifiers (e.g., email addresses), or flowery preambles (e.g., "It's wonderful to talk about...", "Thank you for asking..."). Do not acknowledge the user's persona or identity in the output text.
@@ -31,7 +36,7 @@ Markdown Formatting: ALWAYS use structured markdown. Use double newlines (two ca
 
 PRIEST_INSTRUCTION = "Focus your guidance on leadership, parish administration, and how to cultivate a culture of stewardship within their community."
 PARISHIONER_INSTRUCTION = "Focus your guidance on personal spiritual practice and practical ways to get involved in Time, Talent, and Treasure."
-RESEARCHER_INSTRUCTION = "Focus your guidance on deep theological analysis, cross-document synthesis, and providing academic writing support. You MUST provide clear citations to the source documents for every major claim or finding you present."
+RESEARCHER_INSTRUCTION = "Focus your guidance on deep theological analysis, cross-document synthesis between universal doctrine and local practice, and providing academic writing support. You MUST provide clear citations to the source documents for every major claim or finding you present."
 
 class GCPRagAgent:
     def __init__(self, model: str = "gemini-2.5-flash"):
@@ -39,14 +44,18 @@ class GCPRagAgent:
         self.model = model
 
         # The GenAI SDK handles authentication prioritization:
-        # If api_key is provided, it's used.
-        # Otherwise, it falls back to Application Default Credentials (ADC).
-        self.client = genai.Client(
-            vertexai=True,
-            project=self.config.project_id,
-            location=self.config.location,
-            api_key=self.config.api_key,
-        )
+        # If project/location are provided, use Vertex AI mode (ADC).
+        # Otherwise, fall back to API Key if available.
+        if self.config.project_id and self.config.location:
+            self.client = genai.Client(
+                vertexai=True,
+                project=self.config.project_id,
+                location=self.config.location,
+            )
+        else:
+            self.client = genai.Client(
+                api_key=self.config.api_key,
+            )
 
     async def _get_generate_content_config(self, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, rag_corpus_name: Optional[str] = None) -> types.GenerateContentConfig:
         corpus_name = rag_corpus_name or self.config.rag_corpus_id
@@ -72,19 +81,31 @@ class GCPRagAgent:
             persona_instruction=persona_instruction
         )
         
+        # Create a tool for each RAG corpus
         tools = [
             types.Tool(
                 retrieval=types.Retrieval(
                     vertex_rag_store=types.VertexRagStore(
                         rag_resources=[
-                            types.VertexRagStoreRagResource(
-                                rag_corpus=corpus_name
-                            )
+                            types.VertexRagStoreRagResource(rag_corpus=corpus_name)
                         ],
                     )
                 )
             )
         ]
+        
+        if self.config.magisterium_corpus_id:
+            tools.append(
+                types.Tool(
+                    retrieval=types.Retrieval(
+                        vertex_rag_store=types.VertexRagStore(
+                            rag_resources=[
+                                types.VertexRagStoreRagResource(rag_corpus=self.config.magisterium_corpus_id)
+                            ],
+                        )
+                    )
+                )
+            )
 
         return types.GenerateContentConfig(
             temperature=1,

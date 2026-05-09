@@ -1,8 +1,10 @@
 # firebase-hosting-proxy Specification
 
 ## Purpose
-TBD - created by archiving change firebase-hosting-custom-domain. Update Purpose after archive.
+Configure Firebase Hosting as a secure proxy and custom domain entry point for the StewardshipAI Cloud Run service.
+
 ## Requirements
+
 ### Requirement: Firebase Hosting Proxy to Cloud Run
 The system SHALL use Firebase Hosting to proxy all incoming traffic to the Cloud Run service.
 
@@ -16,4 +18,3 @@ The system SHALL provide an automatically provisioned and managed SSL certificat
 #### Scenario: Secure Access
 - **WHEN** a user navigates to `https://stewardship.goforthtech.org`
 - **THEN** the browser SHALL establish a secure connection using a valid certificate.
-
