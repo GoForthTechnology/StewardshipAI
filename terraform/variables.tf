@@ -67,7 +67,7 @@ variable "firebase_measurement_id" {
 variable "diocese_name" {
   description = "The name of the diocese"
   type        = string
-  default     = "Catholic Diocese of Wichita"
+  default     = "Stewardship AI Portal"
 }
 
 variable "google_client_id" {

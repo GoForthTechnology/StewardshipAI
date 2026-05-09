@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Conversational Web Interface
-The system SHALL provide a web-based chat interface (built in Angular) allowing users to send text queries and receive grounded responses from the RAG API.
+The system SHALL provide a web-based chat interface (built in Angular) allowing users to send text queries and receive grounded responses from the RAG API, optimized for both desktop and mobile devices.
 
 #### Scenario: Submitting a Query
 - **WHEN** an authenticated user enters a question into the chat input and presses send
@@ -12,16 +12,20 @@ The system SHALL provide a web-based chat interface (built in Angular) allowing 
 - **THEN** the system SHALL send the new question along with the current session's message history to the backend.
 - **AND** the system SHALL update the chat display to include the full conversational history.
 
+#### Scenario: Submitting a Query on Mobile
+- **WHEN** an authenticated user on a mobile device enters a question into the chat input
+- **THEN** the system SHALL display the user's message and ensure the input area remains accessible and visible even when the mobile keyboard is active.
+
 ### Requirement: Branded Portal Layout
-The web interface SHALL use a modern component-based layout (Angular) to implement a high-fidelity, responsive design matching the "Catholic Diocese of Wichita" branding and ecclesiastical stewardship theme.
+The web interface SHALL use a modern component-based layout (Angular) to implement a high-fidelity, responsive design that is clean, professional, and organizationally neutral, adapting its structure based on the user's device.
 
-#### Scenario: Displaying Diocesan Branding
+#### Scenario: Displaying Generic Branding
 - **WHEN** the application loads
-- **THEN** it SHALL show the "Catholic Diocese of Wichita Stewardship Portal" title and branding elements.
+- **THEN** it SHALL show the "Stewardship AI Portal" title and generic branding elements, with NO mention of any specific diocese.
 
-#### Scenario: Responsive Display
-- **WHEN** viewed on mobile or desktop devices
-- **THEN** the layout SHALL adapt fluidly while maintaining brand contrast and readability.
+#### Scenario: Displaying Responsive Layout
+- **WHEN** the application loads
+- **THEN** it SHALL detect the screen size and display either a permanent sidebar (desktop) or a collapsible drawer with a top header (mobile).
 
 ### Requirement: Persona Selection
 The web interface SHALL provide a clear mechanism for users to select whether they are interacting as a "Parishioner", a "Priest/Leader", or an "Academic / Researcher".

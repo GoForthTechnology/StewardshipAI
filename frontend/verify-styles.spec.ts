@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Stewardship Portal Branding', () => {
-  test('should apply diocese-blue background to sidebar', async ({ page }) => {
+  test('should apply brand-primary background to sidebar or login', async ({ page }) => {
     // We assume the app is running on localhost:8080 (Docker default)
     // If not running, this will fail, which is expected for verification.
     await page.goto('http://localhost:8080');
@@ -9,9 +9,9 @@ test.describe('Stewardship Portal Branding', () => {
     // Wait for the login screen or portal to load
     await page.waitForSelector('body');
 
-    // Check for the diocese-blue color on a known element
-    // The sidebar in PortalComponent has class "bg-diocese-blue"
-    // The login button in LoginComponent has class "bg-diocese-blue"
+    // Check for the brand-primary color on a known element
+    // The sidebar in PortalComponent has class "bg-brand-primary"
+    // The login button in LoginComponent has class "bg-brand-primary"
     
     const loginButton = page.locator('button:has-text("Sign in with Google")');
     if (await loginButton.isVisible()) {
@@ -25,7 +25,7 @@ test.describe('Stewardship Portal Branding', () => {
     }
   });
 
-  test('should apply diocese-cream background to main content', async ({ page }) => {
+  test('should apply brand-background to main content', async ({ page }) => {
     await page.goto('http://localhost:8080');
     const body = page.locator('body');
     const bgColor = await body.evaluate((el) => window.getComputedStyle(el).backgroundColor);

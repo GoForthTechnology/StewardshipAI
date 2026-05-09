@@ -5,7 +5,7 @@ class GCPConfig(BaseModel):
     project_id: str
     location: str
     rag_corpus_id: str
-    diocese_name: str = "Catholic Diocese of Wichita"
+    diocese_name: str = "Stewardship AI Portal"
     api_key: str | None = None
     firebase_api_key: str | None = None
     firebase_auth_domain: str | None = None
@@ -22,7 +22,7 @@ class GCPConfig(BaseModel):
             project_id=os.environ.get("GCP_PROJECT_ID", os.environ.get("GCP_PROJECT", "")),
             location=os.environ.get("GCP_LOCATION", "us-south1"),
             rag_corpus_id=os.environ.get("GCP_RAG_CORPUS_ID", os.environ.get("GCP_RAG_CORPUS", "")),
-            diocese_name=os.environ.get("DIOCESE_NAME", "Catholic Diocese of Wichita"),
+            diocese_name=os.environ.get("DIOCESE_NAME", "Stewardship AI Portal"),
             api_key=os.environ.get("GOOGLE_CLOUD_API_KEY"),
             firebase_api_key=os.environ.get("FIREBASE_API_KEY"),
             firebase_auth_domain=os.environ.get("FIREBASE_AUTH_DOMAIN"),

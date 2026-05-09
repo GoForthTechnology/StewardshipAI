@@ -35,10 +35,10 @@ if __name__ == "__main__":
     test_agent("What is the weather in Tokyo today?", "Pastoral Refusal")
     
     # Test 3: Knowledge check
-    test_agent("List three specific facts from the documents about stewardship in the diocese.", "Knowledge Check")
+    test_agent("List three specific facts from the documents about stewardship.", "Knowledge Check")
 
     # Test 4: Persona Shift (Priest)
-    test_agent("How can I inspire my parish for stewardship?", "Persona: Priest", persona="priest")
+    test_agent("How can I inspire my community for stewardship?", "Persona: Priest", persona="priest")
 
     # Test 5: Persona Shift (Parishioner)
     test_agent("How can I get more involved in time and talent?", "Persona: Parishioner", persona="parishioner")

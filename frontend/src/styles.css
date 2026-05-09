@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-diocese-blue: #1a3a5a;
-  --color-diocese-cream: #fcfaf5;
-  --color-diocese-gold: #d4af37;
+  --color-brand-primary: #1a3a5a;
+  --color-brand-background: #fcfaf5;
+  --color-brand-accent: #d4af37;
 }
 
 @layer base {
   body {
-    @apply bg-diocese-cream text-diocese-blue font-sans;
+    @apply bg-brand-background text-brand-primary font-sans;
   }
 
   ul {
@@ -58,5 +58,23 @@
 
   .pending-dot:nth-child(3) {
     animation-delay: 0.4s;
+  }
+
+  /* Mobile Drawer Utilities */
+  .mobile-drawer-shadow {
+    box-shadow: 20px 0 50px -12px rgba(0, 0, 0, 0.25);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--color-brand-primary) 10%, transparent);
+    border-radius: 10px;
   }
 }
