@@ -4,6 +4,9 @@
   --color-brand-primary: #1a3a5a;
   --color-brand-background: #fcfaf5;
   --color-brand-accent: #d4af37;
+
+  --spacing-portal-gutter: 2rem;
+  --spacing-portal-padding: 1.5rem;
 }
 
 @layer base {

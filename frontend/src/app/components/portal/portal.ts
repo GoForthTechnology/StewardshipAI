@@ -12,6 +12,18 @@ import { MarkdownPipe } from '../../pipes/markdown';
   selector: 'app-portal',
   standalone: true,
   imports: [CommonModule, FormsModule, DiscoveryGridComponent, MarkdownPipe],
+  styles: [`
+    .portal-container {
+      padding-left: var(--spacing-portal-padding);
+      padding-right: var(--spacing-portal-padding);
+    }
+    @media (min-width: 1024px) {
+      .portal-container {
+        padding-left: var(--spacing-portal-gutter);
+        padding-right: var(--spacing-portal-gutter);
+      }
+    }
+  `],
   template: `
     <div class="flex h-screen bg-brand-background overflow-hidden relative">
       
@@ -22,7 +34,7 @@ import { MarkdownPipe } from '../../pipes/markdown';
         </button>
         <h1 class="text-lg font-bold ml-2 flex items-center gap-2">
           <span>🕊️</span>
-          Portal
+          Stewardship Portal
         </h1>
       </header>
 
@@ -36,9 +48,9 @@ import { MarkdownPipe } from '../../pipes/markdown';
           <div>
             <h1 class="text-xl font-bold flex items-center gap-2">
               <span>🕊️</span>
-              Portal
+              Stewardship Portal
             </h1>
-            <p class="text-xs text-blue-200 mt-1 opacity-70">Stewardship AI</p>
+            <p class="text-xs text-blue-200 mt-1 opacity-70">Guided by Doctrine & Practice</p>
           </div>
           <button (click)="isMenuOpen.set(false)" class="lg:hidden p-2 -mr-2">
             <span class="text-xl">✕</span>
@@ -107,7 +119,7 @@ import { MarkdownPipe } from '../../pipes/markdown';
 
       <!-- Main Content -->
       <main class="flex-1 flex flex-col relative overflow-hidden pt-16 lg:pt-0">
-        <header class="h-16 border-b border-brand-primary/5 bg-white/50 backdrop-blur-md flex items-center px-4 lg:px-8 justify-between shrink-0">
+        <header class="h-16 border-b border-brand-primary/5 bg-white/50 backdrop-blur-md flex items-center justify-between shrink-0 portal-container">
           <h2 class="text-sm font-semibold text-brand-primary uppercase tracking-widest">
             Stewardship Guide
           </h2>
@@ -120,7 +132,7 @@ import { MarkdownPipe } from '../../pipes/markdown';
           </button>
         </header>
 
-        <div #scrollContainer class="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
+        <div #scrollContainer class="flex-1 overflow-y-auto custom-scrollbar portal-container py-4 lg:py-8">
            <div class="max-w-3xl mx-auto space-y-6 lg:space-y-8 pb-12">
              
              <!-- Welcome View -->

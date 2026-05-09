@@ -1,0 +1,17 @@
+/* Sidebar transition */
+aside {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, width;
+}
+
+/* Sidebar nav item hover */
+aside nav button:hover {
+    transform: translateX(4px);
+}
+
+/* Generic transition for interactive elements */
+.transition-all {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}

@@ -6,6 +6,11 @@ import { StewardshipService } from '../../services/stewardship';
   selector: 'app-discovery-grid',
   standalone: true,
   imports: [CommonModule],
+  styles: [`
+    button:hover {
+      transform: translateY(-4px);
+    }
+  `],
   template: `
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 w-full max-w-3xl mx-auto px-4 lg:px-0">
       <ng-container *ngIf="stewardship.persona() === 'parishioner'">
