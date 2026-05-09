@@ -1,3 +1,5 @@
+data "google_project" "project" {}
+
 resource "google_service_account" "ui_service_account" {
   account_id   = "stewardship-ai-ui-sa"
   display_name = "StewardshipAI UI Service Account"
@@ -6,6 +8,24 @@ resource "google_service_account" "ui_service_account" {
 resource "google_project_iam_member" "ui_ai_user" {
   project = var.project_id
   role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.ui_service_account.email}"
+}
+
+resource "google_project_iam_member" "ui_artifact_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.ui_service_account.email}"
+}
+
+resource "google_project_iam_member" "ui_run_admin" {
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${google_service_account.ui_service_account.email}"
+}
+
+resource "google_project_iam_member" "ui_sa_user" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountUser"
   member  = "serviceAccount:${google_service_account.ui_service_account.email}"
 }
 
@@ -167,4 +187,32 @@ resource "google_cloud_run_v2_service_iam_member" "noauth" {
   name     = google_cloud_run_v2_service.ui_service.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# --- GitHub Actions Workload Identity Federation ---
+
+resource "google_iam_workload_identity_pool" "github_pool" {
+  workload_identity_pool_id = "github-actions-pool"
+  display_name              = "GitHub Actions Pool"
+  description              = "Identity pool for GitHub Actions deployments"
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_provider" {
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-provider"
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.actor"      = "assertion.actor"
+    "attribute.repository" = "assertion.repository"
+  }
+  attribute_condition = "assertion.repository == 'GoForthTechnology/StewardshipAI'"
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+}
+
+resource "google_service_account_iam_member" "wif_impersonation" {
+  service_account_id = google_service_account.ui_service_account.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/GoForthTechnology/StewardshipAI"
 }
