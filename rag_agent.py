@@ -31,6 +31,7 @@ Markdown Formatting: ALWAYS use structured markdown. Use double newlines (two ca
 
 PRIEST_INSTRUCTION = "Focus your guidance on leadership, parish administration, and how to cultivate a culture of stewardship within their community."
 PARISHIONER_INSTRUCTION = "Focus your guidance on personal spiritual practice and practical ways to get involved in Time, Talent, and Treasure."
+RESEARCHER_INSTRUCTION = "Focus your guidance on deep theological analysis, cross-document synthesis, and providing academic writing support. You MUST provide clear citations to the source documents for every major claim or finding you present."
 
 class GCPRagAgent:
     def __init__(self, model: str = "gemini-2.5-flash"):
@@ -55,8 +56,15 @@ class GCPRagAgent:
             logger.error(f"Invalid rag_corpus type: {type(corpus_name)}. Value: {corpus_name}")
             corpus_name = str(corpus_name)
         
-        persona_instruction = PRIEST_INSTRUCTION if persona == "priest" else PARISHIONER_INSTRUCTION
-        persona_label = "Priest" if persona == "priest" else "Parishioner"
+        if persona == "priest":
+            persona_instruction = PRIEST_INSTRUCTION
+            persona_label = "Priest"
+        elif persona == "researcher":
+            persona_instruction = RESEARCHER_INSTRUCTION
+            persona_label = "Academic / Researcher"
+        else:
+            persona_instruction = PARISHIONER_INSTRUCTION
+            persona_label = "Parishioner"
         
         system_instruction_text = SYSTEM_INSTRUCTION.format(
             diocese_name=self.config.diocese_name,

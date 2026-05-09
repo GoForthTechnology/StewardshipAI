@@ -9,16 +9,9 @@ variable "region" {
   default     = "us-south1"
 }
 
-variable "rag_corpus_name" {
-  description = "The name of the RAG corpus"
+variable "rag_corpus_id" {
+  description = "The full resource name of the RAG corpus (from setup_env.sh)"
   type        = string
-  default     = "stewardship-ai-corpus"
-}
-
-variable "rag_corpus_description" {
-  description = "Description of the RAG corpus"
-  type        = string
-  default     = "Corpus for StewardshipAI research documents"
 }
 
 variable "document_bucket_name" {
@@ -47,4 +40,43 @@ variable "firebase_api_key" {
 variable "firebase_auth_domain" {
   description = "The Firebase Auth Domain for frontend authentication"
   type        = string
+}
+
+variable "firebase_storage_bucket" {
+  description = "The Firebase Storage Bucket"
+  type        = string
+}
+
+variable "firebase_app_id" {
+  description = "The Firebase App ID"
+  type        = string
+}
+
+variable "firebase_messaging_sender_id" {
+  description = "The Firebase Messaging Sender ID"
+  type        = string
+  default     = ""
+}
+
+variable "firebase_measurement_id" {
+  description = "The Firebase Measurement ID"
+  type        = string
+  default     = ""
+}
+
+variable "diocese_name" {
+  description = "The name of the diocese"
+  type        = string
+  default     = "Catholic Diocese of Wichita"
+}
+
+variable "google_client_id" {
+  description = "The Google OAuth Client ID for Identity Platform"
+  type        = string
+}
+
+variable "google_client_secret" {
+  description = "The Google OAuth Client Secret for Identity Platform"
+  type        = string
+  sensitive   = true
 }

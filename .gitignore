@@ -19,6 +19,19 @@ setup_env.sh
 # GCP
 application_default_credentials.json
 
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+_override.tf
+_override.tf.json
+.terraform.lock.hcl
+
 # Gemini CLI / Agent
 .agent/
 .gemini/

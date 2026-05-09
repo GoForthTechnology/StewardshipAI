@@ -47,6 +47,26 @@ import { StewardshipService } from '../../services/stewardship';
           <p class="text-sm text-diocese-blue/60 mt-1">Address common concerns and questions.</p>
         </button>
       </ng-container>
+
+      <ng-container *ngIf="stewardship.persona() === 'researcher'">
+        <button 
+          (click)="select.emit('Synthesize the main theological themes regarding stewardship across the available documents.')"
+          class="flex flex-col items-start p-6 bg-white rounded-2xl shadow-sm border border-diocese-blue/5 hover:border-diocese-gold hover:shadow-md transition-all text-left group"
+        >
+          <span class="text-3xl mb-3">🏛️</span>
+          <h3 class="font-bold text-diocese-blue group-hover:text-diocese-gold transition-colors">Theological Synthesis</h3>
+          <p class="text-sm text-diocese-blue/60 mt-1">Explore core themes across the corpus.</p>
+        </button>
+
+        <button 
+          (click)="select.emit('Analyze the shift in stewardship language in diocesan documents over the last decade.')"
+          class="flex flex-col items-start p-6 bg-white rounded-2xl shadow-sm border border-diocese-blue/5 hover:border-diocese-gold hover:shadow-md transition-all text-left group"
+        >
+          <span class="text-3xl mb-3">📈</span>
+          <h3 class="font-bold text-diocese-blue group-hover:text-diocese-gold transition-colors">Language Analysis</h3>
+          <p class="text-sm text-diocese-blue/60 mt-1">Study evolution of stewardship concepts.</p>
+        </button>
+      </ng-container>
     </div>
   `
 })

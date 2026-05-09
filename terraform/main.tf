@@ -1,34 +1,3 @@
-resource "google_vertex_ai_rag_engine_config" "default" {
-  project = var.project_id
-  region  = var.region
-
-  rag_managed_db_config {
-    basic {}
-  }
-}
-
-resource "google_vertex_ai_rag_corpus" "stewardship_corpus" {
-  display_name = var.rag_corpus_name
-  description  = var.rag_corpus_description
-  region       = var.region
-
-  # Optional: Explicitly define the embedding model
-  # If omitted, it defaults to the latest text-embedding model
-  embedding_model_config {
-    publisher_model = "projects/${var.project_id}/locations/${var.region}/publishers/google/models/text-embedding-004"
-  }
-
-  depends_on = [google_vertex_ai_rag_engine_config.default]
-}
-
-data "google_project" "project" {}
-
-resource "google_storage_bucket_iam_member" "rag_agent_reader" {
-  bucket = var.document_bucket_name
-  role   = "roles/storage.objectViewer"
-  member = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-vertex-rag.iam.gserviceaccount.com"
-}
-
 resource "google_service_account" "ui_service_account" {
   account_id   = "stewardship-ai-ui-sa"
   display_name = "StewardshipAI UI Service Account"
@@ -45,6 +14,11 @@ resource "google_project_service" "identity_platform" {
   service = "identitytoolkit.googleapis.com"
 }
 
+resource "google_project_service" "firebase_hosting" {
+  project = var.project_id
+  service = "firebasehosting.googleapis.com"
+}
+
 resource "google_identity_platform_config" "default" {
   project = var.project_id
   
@@ -52,6 +26,7 @@ resource "google_identity_platform_config" "default" {
     "localhost",
     "${var.project_id}.firebaseapp.com",
     "${var.project_id}.web.app",
+    "stewardship.goforthtech.org",
   ]
 
   depends_on = [google_project_service.identity_platform]
@@ -61,10 +36,70 @@ resource "google_identity_platform_default_supported_idp_config" "google_idp" {
   project    = var.project_id
   enabled    = true
   idp_id     = "google.com"
-  client_id  = "PLACEHOLDER_CLIENT_ID" # This usually comes from the OAuth consent screen
-  client_secret = "PLACEHOLDER_CLIENT_SECRET"
+  client_id  = var.google_client_id
+  client_secret = var.google_client_secret
   
   depends_on = [google_identity_platform_config.default]
+}
+
+resource "google_firebase_hosting_site" "stewardship_portal" {
+  provider = google-beta
+  project  = var.project_id
+  site_id  = "stewardship-portal"
+
+  depends_on = [google_project_service.firebase_hosting]
+}
+
+resource "google_firebase_hosting_version" "v1" {
+  provider = google-beta
+  site_id  = google_firebase_hosting_site.stewardship_portal.site_id
+  config {
+    rewrites {
+      glob = "**"
+      run {
+        service_id = google_cloud_run_v2_service.ui_service.name
+        region     = var.region
+      }
+    }
+  }
+}
+
+resource "google_firebase_hosting_release" "v1" {
+  provider     = google-beta
+  site_id      = google_firebase_hosting_site.stewardship_portal.site_id
+  version_name = google_firebase_hosting_version.v1.name
+  message      = "Initial Cloud Run rewrite"
+}
+
+resource "google_firebase_hosting_custom_domain" "stewardship_domain" {
+  provider      = google-beta
+  project       = var.project_id
+  site_id       = google_firebase_hosting_site.stewardship_portal.site_id
+  custom_domain = "stewardship.goforthtech.org"
+}
+
+resource "google_artifact_registry_repository" "app_repo" {
+  location      = var.region
+  repository_id = "stewardship-ai"
+  description   = "Docker repository for StewardshipAI"
+  format        = "DOCKER"
+
+  cleanup_policies {
+    id     = "keep-minimum-versions"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 5
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-old-untagged"
+    action = "DELETE"
+    condition {
+      tag_state  = "UNTAGGED"
+      older_than = "86400s" # 1 day
+    }
+  }
 }
 
 resource "google_cloud_run_v2_service" "ui_service" {
@@ -87,7 +122,7 @@ resource "google_cloud_run_v2_service" "ui_service" {
       }
       env {
         name  = "GCP_RAG_CORPUS_ID"
-        value = google_vertex_ai_rag_corpus.stewardship_corpus.name
+        value = var.rag_corpus_id
       }
       env {
         name  = "FIREBASE_API_KEY"
@@ -96,6 +131,26 @@ resource "google_cloud_run_v2_service" "ui_service" {
       env {
         name  = "FIREBASE_AUTH_DOMAIN"
         value = var.firebase_auth_domain
+      }
+      env {
+        name  = "FIREBASE_STORAGE_BUCKET"
+        value = var.firebase_storage_bucket
+      }
+      env {
+        name  = "FIREBASE_APP_ID"
+        value = var.firebase_app_id
+      }
+      env {
+        name  = "FIREBASE_MESSAGING_SENDER_ID"
+        value = var.firebase_messaging_sender_id
+      }
+      env {
+        name  = "FIREBASE_MEASUREMENT_ID"
+        value = var.firebase_measurement_id
+      }
+      env {
+        name  = "DIOCESE_NAME"
+        value = var.diocese_name
       }
     }
   }

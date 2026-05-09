@@ -8,7 +8,7 @@ output "location" {
   value       = var.region
 }
 
-output "rag_corpus_id" {
-  description = "The full resource ID of the RAG corpus"
-  value       = google_vertex_ai_rag_corpus.stewardship_corpus.name
+output "ui_service_url" {
+  description = "The URL of the Cloud Run service"
+  value       = google_cloud_run_v2_service.ui_service.uri
 }

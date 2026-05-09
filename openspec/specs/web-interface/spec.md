@@ -24,10 +24,10 @@ The web interface SHALL use a modern component-based layout (Angular) to impleme
 - **THEN** the layout SHALL adapt fluidly while maintaining brand contrast and readability.
 
 ### Requirement: Persona Selection
-The web interface SHALL provide a clear mechanism for users to select whether they are interacting as a "Parishioner" or a "Priest/Leader".
+The web interface SHALL provide a clear mechanism for users to select whether they are interacting as a "Parishioner", a "Priest/Leader", or an "Academic / Researcher".
 
 #### Scenario: Selecting a Persona
-- **WHEN** a user selects a persona from the toggle or radio buttons
+- **WHEN** a user selects a persona from the toggle, sidebar buttons, or other selection mechanism
 - **THEN** the system SHALL update the session state and pass this context to the RAG agent for subsequent queries.
 
 ### Requirement: Quick-Start Discovery Actions

@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-export type Persona = 'parishioner' | 'priest';
+export type Persona = 'parishioner' | 'priest' | 'researcher';
 
 @Injectable({
   providedIn: 'root'

@@ -42,3 +42,6 @@ if __name__ == "__main__":
 
     # Test 5: Persona Shift (Parishioner)
     test_agent("How can I get more involved in time and talent?", "Persona: Parishioner", persona="parishioner")
+
+    # Test 6: Persona Shift (Academic / Researcher)
+    test_agent("Synthesize the main theological themes regarding stewardship.", "Persona: Researcher", persona="researcher")

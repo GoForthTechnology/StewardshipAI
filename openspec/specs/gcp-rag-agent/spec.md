@@ -33,7 +33,7 @@ The agent SHALL adopt a "Stewardship Guide" persona that is professional, concis
 - **THEN** it SHALL use welcoming, conversational language and weave information from the documents naturally into the dialogue without structured evidence markers or citations.
 
 ### Requirement: Role-Based Response Tailoring
-The agent SHALL adjust its tone and content focus based on the user's selected persona (Priest vs. Parishioner).
+The agent SHALL adjust its tone and content focus based on the user's selected persona (Priest vs. Parishioner vs. Academic / Researcher).
 
 #### Scenario: Tailoring for Priests
 - **WHEN** the "Priest" persona is active
@@ -42,6 +42,10 @@ The agent SHALL adjust its tone and content focus based on the user's selected p
 #### Scenario: Tailoring for Parishioners
 - **WHEN** the "Parishioner" persona is active
 - **THEN** the agent SHALL focus on personal spiritual practice and practical ways to get involved in Time, Talent, and Treasure.
+
+#### Scenario: Tailoring for Academic / Researcher
+- **WHEN** the "researcher" persona is active
+- **THEN** the agent SHALL focus on deep theological analysis, synthesis across multiple documents, and academic writing support.
 
 ### Requirement: Cost-Optimized Context Strategy
 The agent SHALL support a conditional pivot between "Managed RAG" and "Long Context" retrieval based on cost and scale constraints.

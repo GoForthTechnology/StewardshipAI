@@ -1,0 +1,17 @@
+.gcloudignore
+.git
+.gitignore
+node_modules/
+frontend/node_modules/
+frontend/dist/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+setup_env.sh
+.agent/
+.gemini/
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/*.tfvars

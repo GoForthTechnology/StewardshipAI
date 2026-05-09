@@ -45,6 +45,15 @@ import { MarkdownPipe } from '../../pipes/markdown';
               >
                 Priest / Leader
               </button>
+              <button 
+                (click)="setPersona('researcher')"
+                [class.bg-white]="stewardship.persona() === 'researcher'"
+                [class.text-diocese-blue]="stewardship.persona() === 'researcher'"
+                [class.bg-transparent]="stewardship.persona() !== 'researcher'"
+                class="w-full text-left px-3 py-2 rounded-lg transition-all text-sm font-medium hover:bg-white/10"
+              >
+                Academic / Researcher
+              </button>
             </div>
           </div>
         </nav>
