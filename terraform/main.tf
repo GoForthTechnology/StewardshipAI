@@ -47,6 +47,7 @@ resource "google_identity_platform_config" "default" {
     "${var.project_id}.firebaseapp.com",
     "${var.project_id}.web.app",
     "stewardship.goforthtech.org",
+    "devbox.local",
   ]
 
   depends_on = [google_project_service.identity_platform]

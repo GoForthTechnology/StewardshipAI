@@ -1,5 +1,6 @@
 google-genai
 pydantic
+pypdf
 firebase-admin
 google-auth
 pytest

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Security, Response
+from fastapi import FastAPI, Depends, HTTPException, Security, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
@@ -41,6 +41,8 @@ class ChatRequest(BaseModel):
     prompt: str
     persona: str = "parishioner"
     history: Optional[List[dict]] = None
+    file_uri: Optional[str] = None
+    mime_type: Optional[str] = None
 
 def get_current_user(res: HTTPAuthorizationCredentials = Security(security)):
     """Verifies the Firebase ID Token and returns user info."""
@@ -81,7 +83,7 @@ async def get_frontend_config():
     """
     return Response(content=js_content, media_type="application/javascript")
 
-async def stream_agent_response(prompt: str, user_email: str, persona: str, history: Optional[List[dict]] = None):
+async def stream_agent_response(prompt: str, user_email: str, persona: str, history: Optional[List[dict]] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None):
     """Generator to stream agent response chunks as JSON."""
     try:
         async with asyncio.timeout(60):
@@ -89,7 +91,9 @@ async def stream_agent_response(prompt: str, user_email: str, persona: str, hist
                 prompt=prompt,
                 user_email=user_email,
                 persona=persona,
-                history=history
+                history=history,
+                file_uri=file_uri,
+                mime_type=mime_type
             )
             async for chunk in response_stream:
                 if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
@@ -110,10 +114,50 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
             prompt=request.prompt,
             user_email=user_email,
             persona=request.persona,
-            history=request.history
+            history=request.history,
+            file_uri=request.file_uri,
+            mime_type=request.mime_type
         ),
         media_type="text/event-stream"
     )
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Handles file uploads for session-persistent context."""
+    # 1.1 Validation: Size (10MB)
+    MAX_SIZE = 10 * 1024 * 1024  # 10MB
+    contents = await file.read()
+    if len(contents) > MAX_SIZE:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 10MB.")
+    
+    # 1.1 Validation: Type (PDF/Text)
+    ALLOWED_TYPES = ["application/pdf", "text/plain"]
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a PDF or Text document.")
+    
+    # 1.2 Local storage for Vertex AI compatibility
+    UPLOAD_DIR = "/tmp/stewardship-uploads"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    
+    try:
+        # Use a unique ID to prevent collisions
+        import uuid
+        file_id = str(uuid.uuid4())
+        file_extension = "pdf" if file.content_type == "application/pdf" else "txt"
+        safe_filename = f"{file_id}.{file_extension}"
+        file_path = os.path.join(UPLOAD_DIR, safe_filename)
+        
+        with open(file_path, "wb") as f:
+            f.write(contents)
+        
+        return {
+            "file_uri": file_path, # We pass the local path as the 'uri'
+            "display_name": file.filename,
+            "mime_type": file.content_type
+        }
+    except Exception as e:
+        logger.error(f"Upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @app.get("/health")
 def health_check():

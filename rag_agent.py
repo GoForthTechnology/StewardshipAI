@@ -4,6 +4,7 @@ import os
 import asyncio
 from typing import Optional, AsyncGenerator, List
 from config import get_config
+import pypdf
 
 import logging
 from datetime import datetime
@@ -36,7 +37,7 @@ Markdown Formatting: ALWAYS use structured markdown. Use double newlines (two ca
 
 PRIEST_INSTRUCTION = "Focus your guidance on leadership, parish administration, and how to cultivate a culture of stewardship within their community."
 PARISHIONER_INSTRUCTION = "Focus your guidance on personal spiritual practice and practical ways to get involved in Time, Talent, and Treasure."
-RESEARCHER_INSTRUCTION = "Focus your guidance on deep theological analysis, cross-document synthesis between universal doctrine and local practice, and providing academic writing support. You MUST provide clear citations to the source documents for every major claim or finding you present."
+RESEARCHER_INSTRUCTION = "Focus your guidance on deep theological analysis, cross-document synthesis between universal doctrine and local practice, and providing academic writing support. You are specifically tasked with helping the user revise academic or complex text into approachable, pastoral language. Use modern analogies found in the RAG sources to simplify complex concepts. You MUST provide clear citations to the source documents for every major claim or finding you present."
 
 class GCPRagAgent:
     def __init__(self, model: str = "gemini-2.5-flash"):
@@ -121,9 +122,9 @@ class GCPRagAgent:
             system_instruction=[types.Part.from_text(text=system_instruction_text)],
         )
 
-    async def generate_response(self, prompt: str, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, rag_corpus_name: Optional[str] = None):
+    async def generate_response(self, prompt: str, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, rag_corpus_name: Optional[str] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None):
         """Generates a response from the RAG agent and logs the interaction."""
-        logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt}")
+        logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt} | File: {file_uri} | Mime: {mime_type}")
         
         config = await self._get_generate_content_config(
             user_email=user_email,
@@ -133,6 +134,32 @@ class GCPRagAgent:
         )
         
         contents = []
+        
+        # 2.2 Text Extraction to bypass Grounding restrictions on non-text input
+        if file_uri and os.path.exists(file_uri):
+            try:
+                extracted_text = ""
+                actual_mime_type = mime_type or "application/pdf"
+                
+                if actual_mime_type == "application/pdf":
+                    reader = pypdf.PdfReader(file_uri)
+                    for page in reader.pages:
+                        extracted_text += (page.extract_text() or "") + "\n"
+                else:
+                    # Assume text/plain
+                    with open(file_uri, "r", encoding="utf-8", errors="ignore") as f:
+                        extracted_text = f.read()
+                
+                if extracted_text.strip():
+                    contents.append(
+                        types.Content(
+                            role="user",
+                            parts=[types.Part.from_text(text=f"REFERENCE DOCUMENT CONTENT:\n\n{extracted_text}")]
+                        )
+                    )
+            except Exception as e:
+                logger.error(f"Failed to extract text from {file_uri}: {e}")
+
         if history:
             for msg in history:
                 role = "model" if msg["role"] == "assistant" else "user"

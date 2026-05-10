@@ -21,18 +21,26 @@ The web interface SHALL use a modern component-based layout (Angular) to impleme
 
 #### Scenario: Displaying Generic Branding
 - **WHEN** the application loads
-- **THEN** it SHALL show the "Stewardship AI Portal" title and generic branding elements, with NO mention of any specific diocese.
+- **THEN** it SHALL show the "Stewardship Portal" title and generic branding elements, with NO mention of any specific diocese.
+
+#### Scenario: Header Title Display
+- **WHEN** the application loads
+- **THEN** the header SHALL show "Stewardship Portal" with the Dove icon.
 
 #### Scenario: Displaying Responsive Layout
 - **WHEN** the application loads
 - **THEN** it SHALL detect the screen size and display either a permanent sidebar (desktop) or a collapsible drawer with a top header (mobile).
 
-### Requirement: Persona Selection
+### Requirement: Persona Selection and Display
 The web interface SHALL provide a clear mechanism for users to select whether they are interacting as a "Parishioner", a "Priest/Leader", or an "Academic / Researcher".
 
 #### Scenario: Selecting a Persona
 - **WHEN** a user selects a persona from the toggle, sidebar buttons, or other selection mechanism
 - **THEN** the system SHALL update the session state and pass this context to the RAG agent for subsequent queries.
+
+#### Scenario: Switching Personas
+- **WHEN** user selects a new persona from the navigation
+- **THEN** the interface SHALL update the active persona indicator and adjust the suggested prompts in the Discovery Grid.
 
 ### Requirement: Quick-Start Discovery Actions
 The web interface SHALL present "Quick-Start" buttons or cards for common stewardship categories to help users discover content.
@@ -55,6 +63,20 @@ The web interface SHALL display an animated ellipsis ("...") visual feedback whe
 - **WHEN** a user submits a query
 - **THEN** the system SHALL display a chat bubble containing three animated dots that bounce or pulse to indicate the request is being processed.
 - **AND** the animated bubble SHALL disappear once the first chunk of the agent response is received.
+
+### Requirement: File Upload UI and Status
+The web interface SHALL provide a file upload button and a visual indicator (File Chip) for the active uploaded file.
+
+#### Scenario: Displaying Uploaded File
+- **WHEN** a file is successfully uploaded
+- **THEN** a chip displaying the file name and a "remove" button SHALL appear above the chat input.
+
+### Requirement: Supported File Type Communication
+The web interface MUST explicitly inform the user that only PDF and Plain Text files are supported.
+
+#### Scenario: Displaying File Requirements
+- **WHEN** the user hovers over the upload button or opens the file picker
+- **THEN** a hint text or label SHALL display: "Supported: PDF, TXT" or "Please upload a PDF or Text document."
 
 ### Requirement: Frontend Request Timeout
 The web interface SHALL implement a client-side timeout for chat generation requests to prevent the UI from appearing hung.

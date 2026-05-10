@@ -193,14 +193,41 @@ import { MarkdownPipe } from '../../pipes/markdown';
         <!-- Chat Input -->
         <div class="p-4 lg:p-6 bg-gradient-to-t from-brand-background via-brand-background/95 to-transparent shrink-0">
           <div class="max-w-3xl mx-auto">
+            
+            <!-- File Chip -->
+            <div *ngIf="activeFile()" class="flex items-center gap-2 mb-3 px-4 py-2 bg-brand-accent/10 border border-brand-accent/20 rounded-xl w-fit animate-in fade-in slide-in-from-bottom-2">
+              <span class="text-xs font-bold text-brand-primary/60 uppercase tracking-tighter">📄 Document:</span>
+              <span class="text-sm font-medium text-brand-primary truncate max-w-[200px]">{{ activeFile()?.name }}</span>
+              <button (click)="removeFile()" class="ml-1 text-brand-primary/40 hover:text-red-500 transition-colors">✕</button>
+            </div>
+
             <form (submit)="submitChat($event)" class="relative group">
+              <input 
+                #fileInput
+                type="file" 
+                class="hidden" 
+                accept=".pdf,.txt"
+                (change)="onFileSelected($event)"
+              >
+              
+              <button 
+                type="button"
+                (click)="fileInput.click()"
+                [disabled]="isLoading() || !!activeFile()"
+                class="absolute left-2 top-2 lg:left-3 lg:top-3 w-8 h-8 lg:w-10 lg:h-10 bg-white text-brand-primary/40 rounded-xl flex flex-col items-center justify-center hover:bg-brand-primary/5 hover:text-brand-primary transition-all disabled:opacity-30 border border-brand-primary/10"
+                title="Upload Document (PDF/TXT only)"
+              >
+                <span class="text-lg">📎</span>
+                <span class="text-[8px] font-bold -mt-1 hidden lg:block">PDF/TXT</span>
+              </button>
+
               <input 
                 type="text" 
                 [(ngModel)]="currentInput"
                 name="chatInput"
                 [disabled]="isLoading()"
                 placeholder="Ask about Time, Talent, or Treasure..."
-                class="w-full px-4 py-3 lg:px-6 lg:py-4 bg-white rounded-2xl shadow-xl border border-brand-primary/10 focus:outline-none focus:ring-2 focus:ring-brand-accent/30 transition-all pr-12 text-sm lg:text-base text-brand-primary placeholder-brand-primary/40 disabled:opacity-50"
+                class="w-full pl-12 lg:pl-16 pr-12 py-3 lg:px-6 lg:py-4 bg-white rounded-2xl shadow-xl border border-brand-primary/10 focus:outline-none focus:ring-2 focus:ring-brand-accent/30 transition-all text-sm lg:text-base text-brand-primary placeholder-brand-primary/40 disabled:opacity-50"
               >
               <button 
                 type="submit"
@@ -230,6 +257,9 @@ export class PortalComponent implements AfterViewChecked {
   pendingResponse = signal(false);
   isMenuOpen = signal(false);
 
+  // Active File State
+  activeFile = signal<{ name: string, uri: string, mimeType: string } | null>(null);
+
   // Observable for screen size to handle drawer behavior
   isLargeScreen$ = new BehaviorSubject<boolean>(window.innerWidth >= 1024);
 
@@ -258,6 +288,7 @@ export class PortalComponent implements AfterViewChecked {
 
   clearChat() {
     this.messages.set([]);
+    this.removeFile();
   }
 
   async logout() {
@@ -267,6 +298,39 @@ export class PortalComponent implements AfterViewChecked {
   async submitPrompt(prompt: string) {
     this.currentInput = prompt;
     await this.submitChat();
+  }
+
+  async onFileSelected(event: any) {
+    const file: File = event.target.files[0];
+    if (!file) return;
+
+    // Frontend validation: Size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File too large. Maximum size is 10MB.');
+      return;
+    }
+
+    // Frontend validation: Type
+    const allowedTypes = ['application/pdf', 'text/plain'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Invalid file type. Please upload a PDF or Text document.');
+      return;
+    }
+
+    this.isLoading.set(true);
+    try {
+      const result = await this.chatService.uploadFile(file);
+      this.activeFile.set({ name: result.display_name, uri: result.file_uri, mimeType: result.mime_type });
+    } catch (error: any) {
+      alert(`Upload failed: ${error.message}`);
+    } finally {
+      this.isLoading.set(false);
+      event.target.value = ''; // Reset input
+    }
+  }
+
+  removeFile() {
+    this.activeFile.set(null);
   }
 
   async submitChat(event?: Event) {
@@ -289,7 +353,13 @@ export class PortalComponent implements AfterViewChecked {
       // Initialize assistant message
       this.messages.update(msgs => [...msgs, { role: 'assistant', content: '' }]);
       
-      const stream = this.chatService.streamChat(prompt, this.stewardship.persona(), history);
+      const stream = this.chatService.streamChat(
+        prompt, 
+        this.stewardship.persona(), 
+        history,
+        this.activeFile()?.uri,
+        this.activeFile()?.mimeType
+      );
       
       this.isLoading.set(false);
 
