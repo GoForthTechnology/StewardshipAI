@@ -8,6 +8,12 @@ import { ChatService, ChatMessage } from '../../services/chat';
 import { DiscoveryGridComponent } from '../discovery-grid/discovery-grid';
 import { MarkdownPipe } from '../../pipes/markdown';
 
+export interface Corpus {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
 @Component({
   selector: 'app-portal',
   standalone: true,
@@ -88,6 +94,27 @@ import { MarkdownPipe } from '../../pipes/markdown';
               >
                 Academic / Researcher
               </button>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <h3 class="text-xs font-semibold text-blue-300 uppercase tracking-wider px-2">Resources</h3>
+            <div class="space-y-1 px-2">
+              <div *ngFor="let corpus of availableCorpora()" class="flex items-center justify-between py-2 group">
+                <span class="text-sm font-medium text-white/80 group-hover:text-white transition-colors">{{ corpus.name }}</span>
+                <button 
+                  (click)="toggleCorpus(corpus)"
+                  class="w-8 h-4 rounded-full transition-all relative flex items-center"
+                  [class.bg-brand-accent]="corpus.enabled"
+                  [class.bg-blue-800]="!corpus.enabled"
+                >
+                  <div 
+                    class="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
+                    [class.translate-x-4]="corpus.enabled"
+                    [class.translate-x-1]="!corpus.enabled"
+                  ></div>
+                </button>
+              </div>
             </div>
           </div>
         </nav>
@@ -257,6 +284,9 @@ export class PortalComponent implements AfterViewChecked {
   pendingResponse = signal(false);
   isMenuOpen = signal(false);
 
+  // Corpus Selection State
+  availableCorpora = signal<Corpus[]>([]);
+
   // Active File State
   activeFile = signal<{ name: string, uri: string, mimeType: string } | null>(null);
 
@@ -264,6 +294,14 @@ export class PortalComponent implements AfterViewChecked {
   isLargeScreen$ = new BehaviorSubject<boolean>(window.innerWidth >= 1024);
 
   constructor() {
+    // Initialize available corpora from window.ENV
+    const envCorpora = (window as any).ENV?.corpora || [];
+    this.availableCorpora.set(envCorpora.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      enabled: !!c.default
+    })));
+
     window.addEventListener('resize', () => {
       this.isLargeScreen$.next(window.innerWidth >= 1024);
       if (window.innerWidth >= 1024) {
@@ -333,6 +371,20 @@ export class PortalComponent implements AfterViewChecked {
     this.activeFile.set(null);
   }
 
+  toggleCorpus(corpus: Corpus) {
+    const current = this.availableCorpora();
+    const enabledCount = current.filter(c => c.enabled).length;
+    
+    if (corpus.enabled && enabledCount === 1) {
+      alert('At least one resource must be selected.');
+      return;
+    }
+
+    this.availableCorpora.update(corpora => 
+      corpora.map(c => c.id === corpus.id ? { ...c, enabled: !c.enabled } : c)
+    );
+  }
+
   async submitChat(event?: Event) {
     if (event) event.preventDefault();
     if (!this.currentInput || this.isLoading()) return;
@@ -353,12 +405,18 @@ export class PortalComponent implements AfterViewChecked {
       // Initialize assistant message
       this.messages.update(msgs => [...msgs, { role: 'assistant', content: '' }]);
       
+      // Get selected corpus IDs
+      const corpusIds = this.availableCorpora()
+        .filter(c => c.enabled)
+        .map(c => c.id);
+
       const stream = this.chatService.streamChat(
         prompt, 
         this.stewardship.persona(), 
         history,
         this.activeFile()?.uri,
-        this.activeFile()?.mimeType
+        this.activeFile()?.mimeType,
+        corpusIds
       );
       
       this.isLoading.set(false);

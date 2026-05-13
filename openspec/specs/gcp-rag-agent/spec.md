@@ -1,5 +1,8 @@
-## ADDED Requirements
+# GCP RAG Agent Specification
 
+## Purpose
+Define the core behavior and configuration requirements for the GCP-native RAG agent.
+## Requirements
 ### Requirement: GCP RAG Corpus Integration
 The system SHALL integrate with any valid Vertex AI RAG corpus provided through environment-driven configuration, which may include paths provided by IaC output.
 
@@ -98,3 +101,11 @@ The agent SHALL enforce strict type validation for the RAG corpus name to preven
 - **WHEN** the agent configuration is generated
 - **THEN** the system SHALL utilize keyword arguments for all internal method calls.
 - **AND** the system SHALL explicitly verify that the corpus name is a string before passing it to the underlying SDK.
+
+### Requirement: Dynamic Corpus Retrieval Selection
+The agent SHALL support a dynamic list of RAG corpora for retrieval, allowing the retrieval tool to be configured per-request.
+
+#### Scenario: Request with Custom Corpus List
+- **WHEN** the `generate_response` method is called with a list of corpus IDs
+- **THEN** the system SHALL create one retrieval tool for each specified corpus ID in the `GenerateContentConfig`.
+

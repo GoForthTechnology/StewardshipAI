@@ -43,6 +43,7 @@ class ChatRequest(BaseModel):
     history: Optional[List[dict]] = None
     file_uri: Optional[str] = None
     mime_type: Optional[str] = None
+    corpus_ids: Optional[List[str]] = None
 
 def get_current_user(res: HTTPAuthorizationCredentials = Security(security)):
     """Verifies the Firebase ID Token and returns user info."""
@@ -66,6 +67,14 @@ app.add_middleware(
 async def get_frontend_config():
     """Serves runtime configuration as a JavaScript file."""
     config = get_config()
+    
+    # Define available corpora for the frontend
+    corpora = [
+        {"id": config.rag_corpus_id, "name": "Stewardship Resources", "default": True}
+    ]
+    if config.magisterium_corpus_id:
+        corpora.append({"id": config.magisterium_corpus_id, "name": "Universal Magisterium", "default": False})
+
     js_content = f"""
     window.ENV = {{
       production: true,
@@ -78,12 +87,13 @@ async def get_frontend_config():
         appId: "{config.firebase_app_id or ''}",
         measurementId: "{config.firebase_measurement_id or ''}"
       }},
-      apiUrl: ''
+      apiUrl: '',
+      corpora: {json.dumps(corpora)}
     }};
     """
     return Response(content=js_content, media_type="application/javascript")
 
-async def stream_agent_response(prompt: str, user_email: str, persona: str, history: Optional[List[dict]] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None):
+async def stream_agent_response(prompt: str, user_email: str, persona: str, history: Optional[List[dict]] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None, corpus_ids: Optional[List[str]] = None):
     """Generator to stream agent response chunks as JSON."""
     try:
         async with asyncio.timeout(60):
@@ -93,7 +103,8 @@ async def stream_agent_response(prompt: str, user_email: str, persona: str, hist
                 persona=persona,
                 history=history,
                 file_uri=file_uri,
-                mime_type=mime_type
+                mime_type=mime_type,
+                corpus_ids=corpus_ids
             )
             async for chunk in response_stream:
                 if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
@@ -109,6 +120,11 @@ async def stream_agent_response(prompt: str, user_email: str, persona: str, hist
 @app.post("/chat")
 async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
     user_email = user.get("email", "unknown")
+    
+    # Enforcement: At least one corpus must be selected
+    if request.corpus_ids is not None and len(request.corpus_ids) == 0:
+        raise HTTPException(status_code=400, detail="At least one resource must be selected.")
+
     return StreamingResponse(
         stream_agent_response(
             prompt=request.prompt,
@@ -116,7 +132,8 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
             persona=request.persona,
             history=request.history,
             file_uri=request.file_uri,
-            mime_type=request.mime_type
+            mime_type=request.mime_type,
+            corpus_ids=request.corpus_ids
         ),
         media_type="text/event-stream"
     )

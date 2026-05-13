@@ -58,13 +58,9 @@ class GCPRagAgent:
                 api_key=self.config.api_key,
             )
 
-    async def _get_generate_content_config(self, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, rag_corpus_name: Optional[str] = None) -> types.GenerateContentConfig:
-        corpus_name = rag_corpus_name or self.config.rag_corpus_id
-        
-        # Ensure corpus_name is a string (prevents Pydantic validation errors)
-        if not isinstance(corpus_name, str):
-            logger.error(f"Invalid rag_corpus type: {type(corpus_name)}. Value: {corpus_name}")
-            corpus_name = str(corpus_name)
+    async def _get_generate_content_config(self, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, corpus_ids: Optional[List[str]] = None) -> types.GenerateContentConfig:
+        # Default to the primary corpus if none specified
+        active_corpus_ids = corpus_ids if corpus_ids is not None else [self.config.rag_corpus_id]
         
         if persona == "priest":
             persona_instruction = PRIEST_INSTRUCTION
@@ -82,26 +78,20 @@ class GCPRagAgent:
             persona_instruction=persona_instruction
         )
         
-        # Create a tool for each RAG corpus
-        tools = [
-            types.Tool(
-                retrieval=types.Retrieval(
-                    vertex_rag_store=types.VertexRagStore(
-                        rag_resources=[
-                            types.VertexRagStoreRagResource(rag_corpus=corpus_name)
-                        ],
-                    )
-                )
-            )
-        ]
-        
-        if self.config.magisterium_corpus_id:
+        # Create a tool for each active RAG corpus
+        tools = []
+        for c_id in active_corpus_ids:
+            # Ensure c_id is a string
+            if not isinstance(c_id, str):
+                logger.error(f"Invalid rag_corpus type: {type(c_id)}. Value: {c_id}")
+                c_id = str(c_id)
+                
             tools.append(
                 types.Tool(
                     retrieval=types.Retrieval(
                         vertex_rag_store=types.VertexRagStore(
                             rag_resources=[
-                                types.VertexRagStoreRagResource(rag_corpus=self.config.magisterium_corpus_id)
+                                types.VertexRagStoreRagResource(rag_corpus=c_id)
                             ],
                         )
                     )
@@ -122,15 +112,15 @@ class GCPRagAgent:
             system_instruction=[types.Part.from_text(text=system_instruction_text)],
         )
 
-    async def generate_response(self, prompt: str, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, rag_corpus_name: Optional[str] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None):
+    async def generate_response(self, prompt: str, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, corpus_ids: Optional[List[str]] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None):
         """Generates a response from the RAG agent and logs the interaction."""
-        logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt} | File: {file_uri} | Mime: {mime_type}")
+        logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt} | File: {file_uri} | Mime: {mime_type} | Corpora: {corpus_ids}")
         
         config = await self._get_generate_content_config(
             user_email=user_email,
             persona=persona,
             history=history,
-            rag_corpus_name=rag_corpus_name
+            corpus_ids=corpus_ids
         )
         
         contents = []
