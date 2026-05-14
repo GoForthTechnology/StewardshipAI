@@ -33,6 +33,7 @@ EXPOSE 8080
 
 # Environment variables
 ENV PORT=8080
+ENV PYTHONUNBUFFERED=1
 
 # Run the application with Uvicorn
 # We will serve static files from FastAPI in api.py

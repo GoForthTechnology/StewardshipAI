@@ -11,12 +11,31 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 import logging
 import json
+import sys
 import os
 import asyncio
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("stewardship-api")
+# --- Logging Configuration ---
+# Cloud Run captures stdout/stderr. Using JSON allows Cloud Logging to parse severity.
+class CloudLoggingFormatter(logging.Formatter):
+    def format(self, record):
+        log_entry = {
+            "severity": record.levelname,
+            "message": record.getMessage(),
+            "name": record.name,
+            "module": record.module,
+            "timestamp": self.formatTime(record, self.datefmt),
+        }
+        if record.exc_info:
+            log_entry["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_entry)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(CloudLoggingFormatter())
+logging.root.handlers = [handler]
+logging.root.setLevel(logging.INFO)
+
+logger = logging.getLogger("stewardship-ai")
 
 # --- Configuration & Auth ---
 config = get_config()

@@ -9,8 +9,7 @@ import pypdf
 import logging
 from datetime import datetime
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+# Get logger (configuration is handled in the main entry point)
 logger = logging.getLogger("stewardship-ai")
 
 EXTENSION_GROUPS = {
