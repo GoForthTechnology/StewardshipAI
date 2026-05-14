@@ -16,14 +16,11 @@ This document outlines the core engineering standards, architecture, and workflo
 
 ## Workflows
 
-### OpenSpec Workflow
-All feature additions and significant refactors MUST use the OpenSpec workflow:
-
-1.  **Propose**: `/opsx:propose "brief description"`
-2.  **Research & Spec**: Define requirements in `openspec/changes/<name>/specs/`.
-3.  **Implement**: `/opsx:apply <name>`
-4.  **Verify**: Run `verify_rag.py` to ensure requirements are met.
-5.  **Archive**: `/opsx:archive <name>`
+### Terraform Workflow
+- **Variables**: Always use the local `deploy.tfvars` file for all Terraform operations.
+- **Commands**: 
+  - `terraform plan -var-file=deploy.tfvars`
+  - `terraform apply -var-file=deploy.tfvars`
 
 ## Code Style
 

@@ -217,3 +217,59 @@ resource "google_service_account_iam_member" "wif_impersonation" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/GoForthTechnology/StewardshipAI"
 }
+
+# --- Google Cloud App Hub ---
+
+resource "google_project_service" "apphub" {
+  project = var.project_id
+  service = "apphub.googleapis.com"
+}
+
+resource "google_apphub_service_project_attachment" "self" {
+  project                       = var.project_id
+  service_project_attachment_id = var.project_id
+  
+  depends_on = [google_project_service.apphub]
+}
+
+resource "google_apphub_application" "stewardship_portal" {
+  location       = var.region
+  application_id = "stewardship-portal"
+  
+  scope {
+    type = "REGIONAL"
+  }
+
+  attributes {
+    environment {
+      type = "PRODUCTION"
+    }
+    criticality {
+      type = "MISSION_CRITICAL"
+    }
+    operator_owners {
+      email = var.app_owner_email
+    }
+  }
+
+  depends_on = [google_apphub_service_project_attachment.self]
+}
+
+# Discover and register the Cloud Run service to App Hub
+data "google_apphub_discovered_service" "ui_service_discovery" {
+  location = var.region
+  service_uri = "//run.googleapis.com/${google_cloud_run_v2_service.ui_service.id}"
+}
+
+resource "google_apphub_service" "ui_service_registration" {
+  location       = var.region
+  application_id = google_apphub_application.stewardship_portal.application_id
+  service_id     = "stewardship-ui-service"
+  
+  discovered_service = data.google_apphub_discovered_service.ui_service_discovery.id
+
+  depends_on = [
+    google_apphub_application.stewardship_portal,
+    google_apphub_service_project_attachment.self
+  ]
+}

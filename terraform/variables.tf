@@ -86,3 +86,9 @@ variable "google_client_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "app_owner_email" {
+  description = "The email address of the application owner for App Hub"
+  type        = string
+  default     = "parkeroth@gmail.com"
+}
