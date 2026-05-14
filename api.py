@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Security, Response, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Security, Response, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
@@ -8,7 +8,7 @@ from firebase_admin import auth
 from config import get_config
 from rag_agent import GCPRagAgent
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 import logging
 import json
 import os
@@ -32,6 +32,14 @@ if not firebase_admin._apps:
     })
 
 app = FastAPI(title="StewardshipAI API")
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url.path}")
+    response = await call_next(request)
+    logger.info(f"Response status: {response.status_code}")
+    return response
+
 security = HTTPBearer()
 
 # Initialize RAG Agent
@@ -44,6 +52,7 @@ class ChatRequest(BaseModel):
     file_uri: Optional[str] = None
     mime_type: Optional[str] = None
     corpus_ids: Optional[List[str]] = None
+    extension_filters: Optional[Dict[str, List[str]]] = None
 
 def get_current_user(res: HTTPAuthorizationCredentials = Security(security)):
     """Verifies the Firebase ID Token and returns user info."""
@@ -93,7 +102,7 @@ async def get_frontend_config():
     """
     return Response(content=js_content, media_type="application/javascript")
 
-async def stream_agent_response(prompt: str, user_email: str, persona: str, history: Optional[List[dict]] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None, corpus_ids: Optional[List[str]] = None):
+async def stream_agent_response(prompt: str, user_email: str, persona: str, history: Optional[List[dict]] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None, corpus_ids: Optional[List[str]] = None, extension_filters: Optional[Dict[str, List[str]]] = None):
     """Generator to stream agent response chunks as JSON."""
     try:
         async with asyncio.timeout(60):
@@ -104,7 +113,8 @@ async def stream_agent_response(prompt: str, user_email: str, persona: str, hist
                 history=history,
                 file_uri=file_uri,
                 mime_type=mime_type,
-                corpus_ids=corpus_ids
+                corpus_ids=corpus_ids,
+                extension_filters=extension_filters
             )
             async for chunk in response_stream:
                 if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
@@ -120,9 +130,11 @@ async def stream_agent_response(prompt: str, user_email: str, persona: str, hist
 @app.post("/chat")
 async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
     user_email = user.get("email", "unknown")
+    logger.info(f"Received chat request from {user_email}. Prompt: {request.prompt[:50]}... Filters: {request.extension_filters}")
     
     # Enforcement: At least one corpus must be selected
     if request.corpus_ids is not None and len(request.corpus_ids) == 0:
+        logger.warning(f"Rejecting request from {user_email}: No corpora selected.")
         raise HTTPException(status_code=400, detail="At least one resource must be selected.")
 
     return StreamingResponse(
@@ -133,7 +145,8 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
             history=request.history,
             file_uri=request.file_uri,
             mime_type=request.mime_type,
-            corpus_ids=request.corpus_ids
+            corpus_ids=request.corpus_ids,
+            extension_filters=request.extension_filters
         ),
         media_type="text/event-stream"
     )

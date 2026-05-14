@@ -37,7 +37,7 @@ export class ChatService {
     return response.json();
   }
 
-  async *streamChat(prompt: string, persona: string, history: ChatMessage[] = [], file_uri?: string, mime_type?: string, corpus_ids?: string[]) {
+  async *streamChat(prompt: string, persona: string, history: ChatMessage[] = [], file_uri?: string, mime_type?: string, corpus_ids?: string[], extension_filters?: Record<string, string[]>) {
     const currentUser = this.auth.currentUser;
     if (!currentUser) throw new Error('Not authenticated');
 
@@ -52,7 +52,7 @@ export class ChatService {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ prompt, persona, history, file_uri, mime_type, corpus_ids }),
+        body: JSON.stringify({ prompt, persona, history, file_uri, mime_type, corpus_ids, extension_filters }),
         signal: controller.signal
       });
 

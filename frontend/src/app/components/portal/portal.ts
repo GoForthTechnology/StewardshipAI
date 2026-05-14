@@ -12,6 +12,12 @@ export interface Corpus {
   id: string;
   name: string;
   enabled: boolean;
+  extensionFilters: {
+    pdf: boolean;
+    word: boolean;
+    txt: boolean;
+    other: boolean;
+  };
 }
 
 @Component({
@@ -99,21 +105,36 @@ export interface Corpus {
 
           <div class="space-y-3">
             <h3 class="text-xs font-semibold text-blue-300 uppercase tracking-wider px-2">Resources</h3>
-            <div class="space-y-1 px-2">
-              <div *ngFor="let corpus of availableCorpora()" class="flex items-center justify-between py-2 group">
-                <span class="text-sm font-medium text-white/80 group-hover:text-white transition-colors">{{ corpus.name }}</span>
-                <button 
-                  (click)="toggleCorpus(corpus)"
-                  class="w-8 h-4 rounded-full transition-all relative flex items-center"
-                  [class.bg-brand-accent]="corpus.enabled"
-                  [class.bg-blue-800]="!corpus.enabled"
-                >
-                  <div 
-                    class="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
-                    [class.translate-x-4]="corpus.enabled"
-                    [class.translate-x-1]="!corpus.enabled"
-                  ></div>
-                </button>
+            <div class="space-y-4 px-2">
+              <div *ngFor="let corpus of availableCorpora()" class="space-y-2">
+                <div class="flex items-center justify-between group">
+                  <span class="text-sm font-medium text-white/80 group-hover:text-white transition-colors">{{ corpus.name }}</span>
+                  <button 
+                    (click)="toggleCorpus(corpus)"
+                    class="w-8 h-4 rounded-full transition-all relative flex items-center"
+                    [class.bg-brand-accent]="corpus.enabled"
+                    [class.bg-blue-800]="!corpus.enabled"
+                  >
+                    <div 
+                      class="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
+                      [class.translate-x-4]="corpus.enabled"
+                      [class.translate-x-1]="!corpus.enabled"
+                    ></div>
+                  </button>
+                </div>
+                
+                <!-- Extension Filters -->
+                <div *ngIf="corpus.enabled" class="ml-4 space-y-2 border-l border-blue-800 pl-3 py-1 animate-in fade-in slide-in-from-left-2">
+                  <div class="flex items-center justify-between group/ext" *ngFor="let ext of availableExtensions">
+                    <span class="text-[11px] uppercase tracking-wider text-blue-300 group-hover/ext:text-white transition-colors">{{ ext }}</span>
+                    <input 
+                      type="checkbox" 
+                      [checked]="getExtensionValue(corpus, ext)"
+                      (change)="toggleExtension(corpus, ext)"
+                      class="w-3 h-3 rounded border-blue-800 bg-blue-900 text-brand-accent focus:ring-offset-brand-primary"
+                    >
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -286,6 +307,7 @@ export class PortalComponent implements AfterViewChecked {
 
   // Corpus Selection State
   availableCorpora = signal<Corpus[]>([]);
+  availableExtensions = ['pdf', 'word', 'txt', 'other'];
 
   // Active File State
   activeFile = signal<{ name: string, uri: string, mimeType: string } | null>(null);
@@ -299,7 +321,13 @@ export class PortalComponent implements AfterViewChecked {
     this.availableCorpora.set(envCorpora.map((c: any) => ({
       id: c.id,
       name: c.name,
-      enabled: !!c.default
+      enabled: !!c.default,
+      extensionFilters: {
+        pdf: true,
+        word: true,
+        txt: true,
+        other: true
+      }
     })));
 
     window.addEventListener('resize', () => {
@@ -385,6 +413,23 @@ export class PortalComponent implements AfterViewChecked {
     );
   }
 
+  toggleExtension(corpus: Corpus, extension: string) {
+    this.availableCorpora.update(corpora => 
+      corpora.map(c => {
+        if (c.id === corpus.id) {
+          const filters = c.extensionFilters as any;
+          const newFilters = { ...filters, [extension]: !filters[extension] };
+          return { ...c, extensionFilters: newFilters };
+        }
+        return c;
+      })
+    );
+  }
+
+  getExtensionValue(corpus: Corpus, ext: string): boolean {
+    return (corpus.extensionFilters as any)[ext];
+  }
+
   async submitChat(event?: Event) {
     if (event) event.preventDefault();
     if (!this.currentInput || this.isLoading()) return;
@@ -405,10 +450,20 @@ export class PortalComponent implements AfterViewChecked {
       // Initialize assistant message
       this.messages.update(msgs => [...msgs, { role: 'assistant', content: '' }]);
       
-      // Get selected corpus IDs
+      // Get selected corpus IDs and extension filters
       const corpusIds = this.availableCorpora()
         .filter(c => c.enabled)
         .map(c => c.id);
+
+      const extensionFilters: Record<string, string[]> = {};
+      this.availableCorpora().forEach(c => {
+        if (c.enabled) {
+          const activeExtensions = Object.entries(c.extensionFilters || {})
+            .filter(([_, enabled]) => enabled)
+            .map(([ext, _]) => ext);
+          extensionFilters[c.id] = activeExtensions;
+        }
+      });
 
       const stream = this.chatService.streamChat(
         prompt, 
@@ -416,7 +471,8 @@ export class PortalComponent implements AfterViewChecked {
         history,
         this.activeFile()?.uri,
         this.activeFile()?.mimeType,
-        corpusIds
+        corpusIds,
+        extensionFilters
       );
       
       this.isLoading.set(false);
