@@ -7,3 +7,10 @@ pytest
 fastapi
 uvicorn
 python-multipart
+httpx
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-exporter-gcp-trace
+opentelemetry-resourcedetector-gcp
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-httpx

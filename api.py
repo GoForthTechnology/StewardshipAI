@@ -14,6 +14,10 @@ import json
 import sys
 import os
 import asyncio
+from observability import setup_observability, get_trace_id, get_span_id
+
+# --- Configuration & Auth ---
+config = get_config()
 
 # --- Logging Configuration ---
 # Cloud Run captures stdout/stderr. Using JSON allows Cloud Logging to parse severity.
@@ -26,6 +30,15 @@ class CloudLoggingFormatter(logging.Formatter):
             "module": record.module,
             "timestamp": self.formatTime(record, self.datefmt),
         }
+        
+        # Inject Trace ID for Log Correlation
+        trace_id = get_trace_id()
+        if trace_id:
+            log_entry["logging.googleapis.com/trace"] = f"projects/{config.project_id}/traces/{trace_id}"
+            span_id = get_span_id()
+            if span_id:
+                log_entry["logging.googleapis.com/spanId"] = span_id
+
         if record.exc_info:
             log_entry["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_entry)
@@ -36,9 +49,6 @@ logging.root.handlers = [handler]
 logging.root.setLevel(logging.INFO)
 
 logger = logging.getLogger("stewardship-ai")
-
-# --- Configuration & Auth ---
-config = get_config()
 
 # Initialize Firebase Admin SDK
 if not firebase_admin._apps:
@@ -51,6 +61,7 @@ if not firebase_admin._apps:
     })
 
 app = FastAPI(title="StewardshipAI API")
+setup_observability(app)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):

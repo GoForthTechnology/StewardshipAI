@@ -8,9 +8,11 @@ import pypdf
 
 import logging
 from datetime import datetime
+from opentelemetry import trace
 
 # Get logger (configuration is handled in the main entry point)
 logger = logging.getLogger("stewardship-ai")
+tracer = trace.get_tracer("stewardship-ai")
 
 EXTENSION_GROUPS = {
     "pdf": [".pdf"],
@@ -65,78 +67,82 @@ class GCPRagAgent:
 
     async def _manual_retrieve(self, prompt: str, corpus_id: str, allowed_extensions: List[str]) -> List[str]:
         """Manually fetches chunks via REST API to bypass broken metadata filters."""
-        import httpx
-        import google.auth
-        from google.auth.transport.requests import Request as GoogleAuthRequest
+        with tracer.start_as_current_span("rag_manual_retrieve", attributes={"corpus_id": corpus_id}) as span:
+            import httpx
+            import google.auth
+            from google.auth.transport.requests import Request as GoogleAuthRequest
 
-        # 1. Get Authentication Token
-        credentials, _ = google.auth.default()
-        if not credentials.valid:
-            credentials.refresh(GoogleAuthRequest())
+            # 1. Get Authentication Token
+            credentials, _ = google.auth.default()
+            if not credentials.valid:
+                credentials.refresh(GoogleAuthRequest())
 
-        # 2. Build REST URL
-        url = f"https://{self.config.location}-aiplatform.googleapis.com/v1beta1/projects/{self.config.project_id}/locations/{self.config.location}:retrieveContexts"
-        
-        headers = {
-            "Authorization": f"Bearer {credentials.token}",
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "query": {
-                "text": prompt,
-                "similarityTopK": 20
-            },
-            "vertexRagStore": {
-                "ragResources": [{"ragCorpus": corpus_id}]
+            # 2. Build REST URL
+            url = f"https://{self.config.location}-aiplatform.googleapis.com/v1beta1/projects/{self.config.project_id}/locations/{self.config.location}:retrieveContexts"
+            
+            headers = {
+                "Authorization": f"Bearer {credentials.token}",
+                "Content-Type": "application/json"
             }
-        }
-        
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(url, headers=headers, json=payload, timeout=30.0)
             
-        if resp.status_code != 200:
-            logger.error(f"Retrieval API failed: {resp.status_code} {resp.text}")
-            return []
+            payload = {
+                "query": {
+                    "text": prompt,
+                    "similarityTopK": 20
+                },
+                "vertexRagStore": {
+                    "ragResources": [{"ragCorpus": corpus_id}]
+                }
+            }
             
-        data = resp.json()
-        contexts = data.get("contexts", {}).get("contexts", [])
-        
-        if not allowed_extensions:
-            return []
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(url, headers=headers, json=payload, timeout=30.0)
+                
+            if resp.status_code != 200:
+                logger.error(f"Retrieval API failed: {resp.status_code} {resp.text}")
+                span.set_attribute("error", True)
+                span.set_attribute("status_code", resp.status_code)
+                return []
+                
+            data = resp.json()
+            contexts = data.get("contexts", {}).get("contexts", [])
             
-        # 3. Filter the chunks using Python logic
-        flat_allowed = []
-        for group in allowed_extensions:
-            if group in EXTENSION_GROUPS:
-                flat_allowed.extend(EXTENSION_GROUPS[group])
-            else:
-                flat_allowed.append(group.lower())
+            if not allowed_extensions:
+                return []
                 
-        filtered_texts = []
-        uris_seen = []
-        for ctx in contexts:
-            source_uri = ctx.get("sourceUri", "").lower()
-            text = ctx.get("text", "")
-            if not text:
-                continue
+            # 3. Filter the chunks using Python logic
+            flat_allowed = []
+            for group in allowed_extensions:
+                if group in EXTENSION_GROUPS:
+                    flat_allowed.extend(EXTENSION_GROUPS[group])
+                else:
+                    flat_allowed.append(group.lower())
+                    
+            filtered_texts = []
+            uris_seen = []
+            for ctx in contexts:
+                source_uri = ctx.get("sourceUri", "").lower()
+                text = ctx.get("text", "")
+                if not text:
+                    continue
+                    
+                is_known_type = any(source_uri.endswith(ext) for group in EXTENSION_GROUPS.values() for ext in group)
                 
-            is_known_type = any(source_uri.endswith(ext) for group in EXTENSION_GROUPS.values() for ext in group)
-            
-            matches_filter = False
-            if "other" in allowed_extensions and not is_known_type:
-                matches_filter = True
-            else:
-                matches_filter = any(source_uri.endswith(ext) for ext in flat_allowed)
-                
-            if matches_filter:
-                filtered_texts.append(text)
-                uris_seen.append(ctx.get("sourceUri", "unknown"))
-                
-        if filtered_texts:
-            logger.info(f"RAG | Filtered {len(filtered_texts)} chunks from corpus {corpus_id}. Source URIs: {list(set(uris_seen))}")
-                
-        return filtered_texts
+                matches_filter = False
+                if "other" in allowed_extensions and not is_known_type:
+                    matches_filter = True
+                else:
+                    matches_filter = any(source_uri.endswith(ext) for ext in flat_allowed)
+                    
+                if matches_filter:
+                    filtered_texts.append(text)
+                    uris_seen.append(ctx.get("sourceUri", "unknown"))
+                    
+            if filtered_texts:
+                logger.info(f"RAG | Filtered {len(filtered_texts)} chunks from corpus {corpus_id}. Source URIs: {list(set(uris_seen))}")
+                span.set_attribute("chunks_count", len(filtered_texts))
+                    
+            return filtered_texts
 
     async def _get_generate_content_config(self, user_email: str, persona: str = "parishioner", system_instruction_extra: str = "") -> types.GenerateContentConfig:
         if persona == "priest":
@@ -173,90 +179,102 @@ class GCPRagAgent:
 
     async def generate_response(self, prompt: str, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, corpus_ids: Optional[List[str]] = None, extension_filters: Optional[Dict[str, List[str]]] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None):
         """Generates a response using synthetic RAG via REST API manual retrieval."""
-        logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt} | File: {file_uri} | Mime: {mime_type} | Corpora: {corpus_ids} | Filters: {extension_filters}")
-        
-        active_corpus_ids = corpus_ids if corpus_ids is not None else [self.config.rag_corpus_id]
-        
-        # 1. Retrieval Phase via REST API
-        all_filtered_texts = []
-        for c_id in active_corpus_ids:
-            try:
-                allowed = (extension_filters or {}).get(c_id, ["pdf", "word", "txt", "other"])
-                filtered = await self._manual_retrieve(prompt, c_id, allowed)
-                all_filtered_texts.extend(filtered)
-            except Exception as e:
-                logger.error(f"Manual retrieval failed for corpus {c_id}: {e}")
-
-        # 2. Context Construction
-        synthetic_context = ""
-        if all_filtered_texts:
-            synthetic_context = "OFFICIAL SOURCE CONTEXT:\n\n" + "\n\n---\n\n".join(all_filtered_texts)
-        
-        # 3. Prompt Preparation
-        contents = []
-        
-        # Prepend extracted text from uploaded file if present
-        if file_uri and os.path.exists(file_uri):
-            try:
-                extracted_text = ""
-                actual_mime_type = mime_type or "application/pdf"
-                if actual_mime_type == "application/pdf":
-                    reader = pypdf.PdfReader(file_uri)
-                    for page in reader.pages:
-                        extracted_text += (page.extract_text() or "") + "\n"
-                else:
-                    with open(file_uri, "r", encoding="utf-8", errors="ignore") as f:
-                        extracted_text = f.read()
+        with tracer.start_as_current_span("agent_generate_response") as span:
+            logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt} | File: {file_uri} | Mime: {mime_type} | Corpora: {corpus_ids} | Filters: {extension_filters}")
+            
+            active_corpus_ids = corpus_ids if corpus_ids is not None else [self.config.rag_corpus_id]
+            
+            # 1. Retrieval Phase via REST API
+            all_filtered_texts = []
+            
+            # Parallelize retrieval from multiple corpora
+            with tracer.start_as_current_span("retrieval_phase"):
+                retrieval_tasks = []
+                for c_id in active_corpus_ids:
+                    allowed = (extension_filters or {}).get(c_id, ["pdf", "word", "txt", "other"])
+                    retrieval_tasks.append(self._manual_retrieve(prompt, c_id, allowed))
                 
-                if extracted_text.strip():
+                results = await asyncio.gather(*retrieval_tasks, return_exceptions=True)
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        logger.error(f"Manual retrieval failed for corpus {active_corpus_ids[i]}: {result}")
+                    else:
+                        all_filtered_texts.extend(result)
+
+            span.set_attribute("total_chunks_retrieved", len(all_filtered_texts))
+
+            # 2. Context Construction
+            with tracer.start_as_current_span("context_construction_phase"):
+                synthetic_context = ""
+                if all_filtered_texts:
+                    synthetic_context = "OFFICIAL SOURCE CONTEXT:\n\n" + "\n\n---\n\n".join(all_filtered_texts)
+                
+                # 3. Prompt Preparation
+                contents = []
+                
+                # Prepend extracted text from uploaded file if present
+                if file_uri and os.path.exists(file_uri):
+                    try:
+                        extracted_text = ""
+                        actual_mime_type = mime_type or "application/pdf"
+                        if actual_mime_type == "application/pdf":
+                            reader = pypdf.PdfReader(file_uri)
+                            for page in reader.pages:
+                                extracted_text += (page.extract_text() or "") + "\n"
+                        else:
+                            with open(file_uri, "r", encoding="utf-8", errors="ignore") as f:
+                                extracted_text = f.read()
+                        
+                        if extracted_text.strip():
+                            contents.append(
+                                types.Content(
+                                    role="user",
+                                    parts=[types.Part.from_text(text=f"SESSION DOCUMENT CONTENT:\n\n{extracted_text}")]
+                                )
+                            )
+                    except Exception as e:
+                        logger.error(f"Failed to extract text from {file_uri}: {e}")
+
+                # Add synthetic context if any
+                if synthetic_context:
                     contents.append(
                         types.Content(
                             role="user",
-                            parts=[types.Part.from_text(text=f"SESSION DOCUMENT CONTENT:\n\n{extracted_text}")]
+                            parts=[types.Part.from_text(text=synthetic_context)]
                         )
                     )
-            except Exception as e:
-                logger.error(f"Failed to extract text from {file_uri}: {e}")
 
-        # Add synthetic context if any
-        if synthetic_context:
-            contents.append(
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=synthetic_context)]
+                if history:
+                    for msg in history:
+                        role = "model" if msg["role"] == "assistant" else "user"
+                        contents.append(types.Content(
+                            role=role,
+                            parts=[types.Part.from_text(text=msg["content"])]
+                        ))
+                
+                # Add current prompt
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=prompt)]
+                    )
                 )
-            )
+            
+            # 4. Generation Phase
+            with tracer.start_as_current_span("generation_phase"):
+                system_instruction_extra = ""
+                if not all_filtered_texts and not (file_uri and os.path.exists(file_uri)):
+                    # Pastoral refusal if no context found after filtering
+                    system_instruction_extra = "IMPORTANT: No relevant official documents were found matching the user's requested type. Inform the user gracefully that our official resources don't cover this topic in the requested format."
 
-        if history:
-            for msg in history:
-                role = "model" if msg["role"] == "assistant" else "user"
-                contents.append(types.Content(
-                    role=role,
-                    parts=[types.Part.from_text(text=msg["content"])]
-                ))
-        
-        # Add current prompt
-        contents.append(
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=prompt)]
-            )
-        )
-        
-        # 4. Generation Phase
-        system_instruction_extra = ""
-        if not all_filtered_texts and not (file_uri and os.path.exists(file_uri)):
-            # Pastoral refusal if no context found after filtering
-            system_instruction_extra = "IMPORTANT: No relevant official documents were found matching the user's requested type. Inform the user gracefully that our official resources don't cover this topic in the requested format."
+                config = await self._get_generate_content_config(
+                    user_email=user_email,
+                    persona=persona,
+                    system_instruction_extra=system_instruction_extra
+                )
 
-        config = await self._get_generate_content_config(
-            user_email=user_email,
-            persona=persona,
-            system_instruction_extra=system_instruction_extra
-        )
-
-        return await self.client.aio.models.generate_content_stream(
-            model=self.model,
-            contents=contents,
-            config=config,
-        )
+                return await self.client.aio.models.generate_content_stream(
+                    model=self.model,
+                    contents=contents,
+                    config=config,
+                )

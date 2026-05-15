@@ -107,5 +107,6 @@ The agent SHALL support a dynamic list of RAG corpora for retrieval, allowing th
 
 #### Scenario: Request with Custom Corpus List
 - **WHEN** the `generate_response` method is called with a list of corpus IDs
-- **THEN** the system SHALL create one retrieval tool for each specified corpus ID in the `GenerateContentConfig`.
+- **THEN** the system SHALL execute retrieval tasks for each specified corpus ID concurrently using asynchronous execution (e.g., `asyncio.gather`).
+- **AND** the results from all corpora SHALL be aggregated before context construction.
 
