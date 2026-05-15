@@ -52,9 +52,8 @@ export interface Corpus {
 
       <!-- Sidebar / Mobile Drawer -->
       <aside 
-        [class.translate-x-0]="isMenuOpen() || (isLargeScreen$ | async)"
-        [class.-translate-x-full]="!isMenuOpen() && !(isLargeScreen$ | async)"
-        class="fixed lg:static inset-y-0 left-0 w-72 bg-brand-primary text-white flex flex-col shadow-2xl z-30 transition-transform duration-300 ease-in-out lg:translate-x-0"
+        [class.translate-x-0]="isMenuOpen()"
+        class="fixed lg:static inset-y-0 left-0 w-72 bg-brand-primary text-white flex flex-col shadow-2xl z-30 transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0"
       >
         <div class="p-6 flex items-center justify-between lg:block">
           <div>
@@ -312,9 +311,6 @@ export class PortalComponent implements AfterViewChecked {
   // Active File State
   activeFile = signal<{ name: string, uri: string, mimeType: string } | null>(null);
 
-  // Observable for screen size to handle drawer behavior
-  isLargeScreen$ = new BehaviorSubject<boolean>(window.innerWidth >= 1024);
-
   constructor() {
     // Initialize available corpora from window.ENV
     const envCorpora = (window as any).ENV?.corpora || [];
@@ -329,13 +325,6 @@ export class PortalComponent implements AfterViewChecked {
         other: true
       }
     })));
-
-    window.addEventListener('resize', () => {
-      this.isLargeScreen$.next(window.innerWidth >= 1024);
-      if (window.innerWidth >= 1024) {
-        this.isMenuOpen.set(false);
-      }
-    });
   }
 
   ngAfterViewChecked() {
