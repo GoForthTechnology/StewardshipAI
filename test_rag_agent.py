@@ -32,7 +32,7 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         # Clear exporter for each test
-        self.exporter.reset()
+        self.exporter.clear()
         
         # Default mock config for most tests
         self.mock_config = MagicMock()

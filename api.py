@@ -139,22 +139,18 @@ async def get_frontend_config():
 async def stream_agent_response(prompt: str, user_email: str, persona: str, history: Optional[List[dict]] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None, corpus_ids: Optional[List[str]] = None, extension_filters: Optional[Dict[str, List[str]]] = None):
     """Generator to stream agent response chunks as JSON."""
     try:
-        async with asyncio.timeout(60):
-            response_stream = agent.generate_response(
-                prompt=prompt,
-                user_email=user_email,
-                persona=persona,
-                history=history,
-                file_uri=file_uri,
-                mime_type=mime_type,
-                corpus_ids=corpus_ids,
-                extension_filters=extension_filters
-            )
-            async for chunk in response_stream:
-                yield f"data: {json.dumps(chunk)}\n\n"
-    except asyncio.TimeoutError:
-        logger.error(f"Generation timed out for user: {user_email}")
-        yield f"data: {json.dumps({'error': 'The request took too long to process. Please try again.'})}\n\n"
+        response_stream = agent.generate_response(
+            prompt=prompt,
+            user_email=user_email,
+            persona=persona,
+            history=history,
+            file_uri=file_uri,
+            mime_type=mime_type,
+            corpus_ids=corpus_ids,
+            extension_filters=extension_filters
+        )
+        async for chunk in response_stream:
+            yield f"data: {json.dumps(chunk)}\n\n"
     except Exception as e:
         logger.error(f"Error in stream_agent_response: {e}")
         yield f"data: {json.dumps({'error': str(e)})}\n\n"
