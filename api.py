@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import firebase_admin
 from firebase_admin import auth
+from google.genai import types
 from config import get_config
 from rag_agent import GCPRagAgent
 from pydantic import BaseModel

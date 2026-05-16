@@ -83,7 +83,7 @@ export interface Corpus {
 
           <!-- Recent Chats -->
           <div class="space-y-3" *ngIf="history.sessions().length > 0">
-            <h3 class="text-xs font-semibold text-blue-300 uppercase tracking-wider px-2">Recent Chats</h3>
+            <h3 class="text-xs font-semibold text-blue-300/50 uppercase tracking-widest px-2 text-[10px]">Recent Chats</h3>
             <div class="space-y-1">
               <div *ngFor="let session of history.getSessions()" class="group relative">
                 <button 
@@ -104,69 +104,38 @@ export interface Corpus {
             </div>
           </div>
 
-          <div class="space-y-3">
-            <h3 class="text-xs font-semibold text-blue-300 uppercase tracking-wider px-2">I am a...</h3>
-            <div class="space-y-1">
-              <button 
-                (click)="setPersona('parishioner')"
-                [class.bg-white]="stewardship.persona() === 'parishioner'"
-                [class.text-brand-primary]="stewardship.persona() === 'parishioner'"
-                [class.bg-transparent]="stewardship.persona() !== 'parishioner'"
-                class="w-full text-left px-3 py-2 rounded-lg transition-all text-sm font-medium hover:bg-white/10"
-              >
-                Parishioner
-              </button>
-              <button 
-                (click)="setPersona('priest')"
-                [class.bg-white]="stewardship.persona() === 'priest'"
-                [class.text-brand-primary]="stewardship.persona() === 'priest'"
-                [class.bg-transparent]="stewardship.persona() !== 'priest'"
-                class="w-full text-left px-3 py-2 rounded-lg transition-all text-sm font-medium hover:bg-white/10"
-              >
-                Priest / Leader
-              </button>
-              <button 
-                (click)="setPersona('researcher')"
-                [class.bg-white]="stewardship.persona() === 'researcher'"
-                [class.text-brand-primary]="stewardship.persona() === 'researcher'"
-                [class.bg-transparent]="stewardship.persona() !== 'researcher'"
-                class="w-full text-left px-3 py-2 rounded-lg transition-all text-sm font-medium hover:bg-white/10"
-              >
-                Academic / Researcher
-              </button>
-            </div>
-          </div>
-
-          <div class="space-y-3">
-            <h3 class="text-xs font-semibold text-blue-300 uppercase tracking-wider px-2">Resources</h3>
-            <div class="space-y-4 px-2">
-              <div *ngFor="let corpus of availableCorpora()" class="space-y-2">
-                <div class="flex items-center justify-between group">
-                  <span class="text-sm font-medium text-white/80 group-hover:text-white transition-colors">{{ corpus.name }}</span>
-                  <button 
-                    (click)="toggleCorpus(corpus)"
-                    class="w-8 h-4 rounded-full transition-all relative flex items-center"
-                    [class.bg-brand-accent]="corpus.enabled"
-                    [class.bg-blue-800]="!corpus.enabled"
-                  >
-                    <div 
-                      class="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
-                      [class.translate-x-4]="corpus.enabled"
-                      [class.translate-x-1]="!corpus.enabled"
-                    ></div>
-                  </button>
-                </div>
-                
-                <!-- Extension Filters -->
-                <div *ngIf="corpus.enabled" class="ml-4 space-y-2 border-l border-blue-800 pl-3 py-1 animate-in fade-in slide-in-from-left-2">
-                  <div class="flex items-center justify-between group/ext" *ngFor="let ext of availableExtensions">
-                    <span class="text-[11px] uppercase tracking-wider text-blue-300 group-hover/ext:text-white transition-colors">{{ ext }}</span>
-                    <input 
-                      type="checkbox" 
-                      [checked]="getExtensionValue(corpus, ext)"
-                      (change)="toggleExtension(corpus, ext)"
-                      class="w-3 h-3 rounded border-blue-800 bg-blue-900 text-brand-accent focus:ring-offset-brand-primary"
+          <div class="pt-4 mt-4 border-t border-blue-800/30 space-y-6">
+            <div class="space-y-3">
+              <h3 class="text-xs font-semibold text-blue-300/50 uppercase tracking-widest px-2 text-[10px]">Resources</h3>
+              <div class="space-y-4 px-2">
+                <div *ngFor="let corpus of availableCorpora()" class="space-y-2">
+                  <div class="flex items-center justify-between group">
+                    <span class="text-sm font-medium text-white/80 group-hover:text-white transition-colors">{{ corpus.name }}</span>
+                    <button 
+                      (click)="toggleCorpus(corpus)"
+                      class="w-8 h-4 rounded-full transition-all relative flex items-center"
+                      [class.bg-brand-accent]="corpus.enabled"
+                      [class.bg-blue-800]="!corpus.enabled"
                     >
+                      <div 
+                        class="w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200"
+                        [class.translate-x-4]="corpus.enabled"
+                        [class.translate-x-1]="!corpus.enabled"
+                      ></div>
+                    </button>
+                  </div>
+                  
+                  <!-- Extension Filters (Researcher Only) -->
+                  <div *ngIf="corpus.enabled && stewardship.persona() === 'researcher'" class="ml-4 space-y-2 border-l border-blue-800 pl-3 py-1 animate-in fade-in slide-in-from-left-2">
+                    <div class="flex items-center justify-between group/ext" *ngFor="let ext of availableExtensions">
+                      <span class="text-[11px] uppercase tracking-wider text-blue-300 group-hover/ext:text-white transition-colors">{{ ext }}</span>
+                      <input 
+                        type="checkbox" 
+                        [checked]="getExtensionValue(corpus, ext)"
+                        (change)="toggleExtension(corpus, ext)"
+                        class="w-3 h-3 rounded border-blue-800 bg-blue-900 text-brand-accent focus:ring-offset-brand-primary"
+                      >
+                    </div>
                   </div>
                 </div>
               </div>
@@ -201,16 +170,63 @@ export interface Corpus {
 
       <!-- Main Content -->
       <main class="flex-1 flex flex-col relative overflow-hidden pt-16 lg:pt-0">
-        <header class="h-16 border-b border-brand-primary/5 bg-white/50 backdrop-blur-md flex items-center justify-between shrink-0 portal-container">
-          <h2 class="text-sm font-semibold text-brand-primary uppercase tracking-widest">
-            Stewardship Guide
-          </h2>
+        <header class="h-16 border-b border-brand-primary/5 bg-white/80 backdrop-blur-md flex items-center justify-between shrink-0 portal-container z-10">
+          <div class="flex items-center gap-4">
+            <h2 class="hidden lg:block text-xs font-bold text-brand-primary/40 uppercase tracking-widest">
+              Guide Mode
+            </h2>
+            
+            <!-- Persona Switcher (Desktop) -->
+            <div class="hidden lg:flex bg-brand-background p-1 rounded-xl border border-brand-primary/5 shadow-sm">
+              <button 
+                *ngFor="let p of personas"
+                (click)="setPersona(p)"
+                [class.bg-white]="stewardship.persona() === p"
+                [class.text-brand-primary]="stewardship.persona() === p"
+                [class.shadow-md]="stewardship.persona() === p"
+                [class.text-brand-primary/40]="stewardship.persona() !== p"
+                class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all hover:text-brand-primary"
+              >
+                {{ p === 'parishioner' ? 'Parishioner' : p === 'priest' ? 'Priest' : 'Researcher' }}
+              </button>
+            </div>
+
+            <!-- Persona Switcher (Mobile) -->
+            <div class="lg:hidden relative">
+              <button 
+                (click)="isPersonaMenuOpen.set(!isPersonaMenuOpen())"
+                class="flex items-center gap-2 px-3 py-1.5 bg-brand-primary/5 rounded-full border border-brand-primary/10 text-xs font-bold text-brand-primary transition-all active:scale-95"
+              >
+                <span class="opacity-60">{{ stewardship.persona() === 'priest' ? '⛪' : stewardship.persona() === 'researcher' ? '🎓' : '🕊️' }}</span>
+                <span class="capitalize">{{ stewardship.persona() }}</span>
+                <span class="text-[10px] opacity-40">▼</span>
+              </button>
+              
+              <!-- Mobile Dropdown -->
+              <div 
+                *ngIf="isPersonaMenuOpen()"
+                class="absolute left-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-brand-primary/5 p-2 space-y-1 animate-in fade-in zoom-in-95"
+              >
+                <button 
+                  *ngFor="let p of personas"
+                  (click)="setPersona(p); isPersonaMenuOpen.set(false)"
+                  class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all hover:bg-brand-primary/5 flex items-center gap-3"
+                  [class.text-brand-primary]="stewardship.persona() === p"
+                  [class.bg-brand-primary/5]="stewardship.persona() === p"
+                >
+                  <span class="text-base">{{ p === 'priest' ? '⛪' : p === 'researcher' ? '🎓' : '🕊️' }}</span>
+                  <span class="capitalize">{{ p }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <button 
             *ngIf="messages().length > 0"
             (click)="clearChat()"
-            class="text-xs font-bold text-brand-primary/40 hover:text-brand-primary transition-colors"
+            class="text-[10px] font-black text-brand-primary/30 hover:text-red-500 transition-colors uppercase tracking-tighter"
           >
-            Reset Chat
+            Reset session
           </button>
         </header>
 
@@ -345,6 +361,7 @@ export class PortalComponent implements AfterViewChecked {
   pendingResponse = signal(false);
   currentStatus = signal<string | null>(null);
   isMenuOpen = signal(false);
+  isPersonaMenuOpen = signal(false);
 
   // Corpus Selection State
   availableCorpora = signal<Corpus[]>([]);
@@ -352,6 +369,8 @@ export class PortalComponent implements AfterViewChecked {
 
   // Active File State
   activeFile = signal<{ name: string, uri: string, mimeType: string } | null>(null);
+
+  personas: Persona[] = ['parishioner', 'priest', 'researcher'];
 
   constructor() {
     // Initialize available corpora from window.ENV
@@ -600,7 +619,9 @@ export class PortalComponent implements AfterViewChecked {
       // Trigger auto-titling for new sessions
       if (isNewSession) {
         this.chatService.getChatTitle(prompt).then(title => {
-          this.history.updateSession(sessionId!, { title });
+          if (title && title !== 'New Chat') {
+            this.history.updateSession(sessionId!, { title });
+          }
         }).catch(err => console.error('Auto-titling failed:', err));
       }
 

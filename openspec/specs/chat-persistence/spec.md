@@ -19,10 +19,14 @@ The system SHALL provide a mechanism to persist chat sessions locally on the use
 - **THEN** the system SHALL clear the current chat view and load the messages and persona state from the selected session.
 
 ### Requirement: Chat Session Titling
-The system SHALL support assigning descriptive titles to chat sessions based on the content of the initial exchange.
+The system SHALL support assigning descriptive titles to chat sessions based on the content of the initial exchange, utilizing both local heuristics and remote LLM generation.
 
 #### Scenario: Initializing a Chat Title
 - **WHEN** a new chat session is created
-- **THEN** the system SHALL initially set the title to a placeholder (e.g., "New Chat").
-- **AND** after the first turn completes, the system SHALL trigger an asynchronous request to generate a concise, relevant title.
+- **THEN** the system SHALL initially generate a local title using a word-slice fallback (e.g., the first 4 words of the prompt).
+
+#### Scenario: Refining a Chat Title
+- **WHEN** the first turn of a new chat session completes
+- **THEN** the system SHALL trigger an asynchronous request to generate a concise, relevant title via LLM.
+- **AND** the system SHALL ONLY update the session title if the returned title is non-empty and distinct from the generic "New Chat" placeholder.
 

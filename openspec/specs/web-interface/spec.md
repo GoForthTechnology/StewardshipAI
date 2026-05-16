@@ -34,16 +34,17 @@ The web interface SHALL use a modern component-based layout (Angular) to impleme
 - **WHEN** the application loads
 - **THEN** it SHALL detect the screen size and display either a permanent sidebar (desktop) or a collapsible drawer with a top header (mobile).
 - **AND** the sidebar SHALL include a dedicated section for "Recent Chats".
+- **AND** technical extension filters in the sidebar SHALL only be visible when the "Academic / Researcher" persona is active.
 
 ### Requirement: Persona Selection and Display
-The web interface SHALL provide a clear mechanism for users to select whether they are interacting as a "Parishioner", a "Priest/Leader", or an "Academic / Researcher".
+The web interface SHALL provide a clear mechanism for users to select whether they are interacting as a "Parishioner", a "Priest/Leader", or an "Academic / Researcher" located in the chat header.
 
 #### Scenario: Selecting a Persona
-- **WHEN** a user selects a persona from the toggle, sidebar buttons, or other selection mechanism
+- **WHEN** a user selects a persona from the header switcher
 - **THEN** the system SHALL update the session state and pass this context to the RAG agent for subsequent queries.
 
 #### Scenario: Switching Personas
-- **WHEN** user selects a new persona from the navigation
+- **WHEN** user selects a new persona from the header navigation
 - **THEN** the interface SHALL update the active persona indicator and adjust the suggested prompts in the Discovery Grid.
 
 ### Requirement: Quick-Start Discovery Actions
