@@ -13,11 +13,15 @@ async def test_agent(prompt, label, persona="parishioner", user_email="test@exam
     print("Response: ", end="")
     
     try:
-        response_stream = await agent.generate_response(prompt, user_email=user_email, persona=persona)
+        response_stream = agent.generate_response(prompt, user_email=user_email, persona=persona)
         full_response = ""
         async for chunk in response_stream:
-            if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
-                text = chunk.text
+            if "status" in chunk:
+                print(f"[Status: {chunk['status']}] ", flush=True)
+                continue
+            
+            if "text" in chunk:
+                text = chunk["text"]
                 print(text, end="", flush=True)
                 full_response += text
         print("\n")

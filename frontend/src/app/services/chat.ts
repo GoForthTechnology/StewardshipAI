@@ -43,7 +43,7 @@ export class ChatService {
 
     const token = await currentUser.getIdToken();
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased timeout for large files
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
     try {
       const response = await fetch(`${environment.apiUrl}/chat`, {
@@ -89,5 +89,27 @@ export class ChatService {
       clearTimeout(timeoutId);
       throw error;
     }
+  }
+
+  async getChatTitle(prompt: string): Promise<string> {
+    const currentUser = this.auth.currentUser;
+    if (!currentUser) throw new Error('Not authenticated');
+
+    const token = await currentUser.getIdToken();
+    const response = await fetch(`${environment.apiUrl}/chat/title`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate chat title');
+    }
+
+    const data = await response.json();
+    return data.title;
   }
 }

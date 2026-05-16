@@ -84,6 +84,9 @@ class ChatRequest(BaseModel):
     corpus_ids: Optional[List[str]] = None
     extension_filters: Optional[Dict[str, List[str]]] = None
 
+class TitleRequest(BaseModel):
+    prompt: str
+
 def get_current_user(res: HTTPAuthorizationCredentials = Security(security)):
     """Verifies the Firebase ID Token and returns user info."""
     try:
@@ -136,7 +139,7 @@ async def stream_agent_response(prompt: str, user_email: str, persona: str, hist
     """Generator to stream agent response chunks as JSON."""
     try:
         async with asyncio.timeout(60):
-            response_stream = await agent.generate_response(
+            response_stream = agent.generate_response(
                 prompt=prompt,
                 user_email=user_email,
                 persona=persona,
@@ -147,9 +150,7 @@ async def stream_agent_response(prompt: str, user_email: str, persona: str, hist
                 extension_filters=extension_filters
             )
             async for chunk in response_stream:
-                if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
-                    text = chunk.text
-                    yield f"data: {json.dumps({'text': text})}\n\n"
+                yield f"data: {json.dumps(chunk)}\n\n"
     except asyncio.TimeoutError:
         logger.error(f"Generation timed out for user: {user_email}")
         yield f"data: {json.dumps({'error': 'The request took too long to process. Please try again.'})}\n\n"
@@ -180,6 +181,25 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
         ),
         media_type="text/event-stream"
     )
+
+@app.post("/chat/title")
+async def get_chat_title(request: TitleRequest, user: dict = Depends(get_current_user)):
+    """Generates a concise title for a chat session."""
+    try:
+        # Use a slightly more descriptive prompt to avoid generic titles
+        response = await agent.client.aio.models.generate_content(
+            model=agent.model,
+            contents=f"Generate a unique 2-3 word title that captures the specific intent of this question: '{request.prompt}'. Return ONLY the title text.",
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=15
+            )
+        )
+        title = response.text.strip()
+        return {"title": title}
+    except Exception as e:
+        logger.error(f"Title generation failed: {e}")
+        return {"title": "New Chat"}
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_current_user)):

@@ -52,11 +52,13 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
             user_email = "test@example.com"
             corpus_ids = ["corpus-1", "corpus-2"]
             
-            await agent.generate_response(
+            response_stream = agent.generate_response(
                 prompt=prompt,
                 user_email=user_email,
                 corpus_ids=corpus_ids
             )
+            async for _ in response_stream:
+                pass
 
             # 1. Verify parallelization: httpx.post should be called twice (one for each corpus)
             self.assertEqual(mock_post.call_count, 2)

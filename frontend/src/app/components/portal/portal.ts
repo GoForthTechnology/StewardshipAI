@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { BehaviorSubject } from 'rxjs';
 import { StewardshipService, Persona } from '../../services/stewardship';
 import { ChatService, ChatMessage } from '../../services/chat';
+import { HistoryService, ChatSession } from '../../services/history';
 import { DiscoveryGridComponent } from '../discovery-grid/discovery-grid';
 import { MarkdownPipe } from '../../pipes/markdown';
 
@@ -69,6 +70,40 @@ export interface Corpus {
         </div>
 
         <nav class="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
+          
+          <div class="space-y-3">
+            <button 
+              (click)="createNewChat()"
+              class="w-full flex items-center gap-3 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all group"
+            >
+              <span class="text-xl group-hover:scale-110 transition-transform">+</span>
+              <span class="text-sm font-semibold tracking-wide">New Chat</span>
+            </button>
+          </div>
+
+          <!-- Recent Chats -->
+          <div class="space-y-3" *ngIf="history.sessions().length > 0">
+            <h3 class="text-xs font-semibold text-blue-300 uppercase tracking-wider px-2">Recent Chats</h3>
+            <div class="space-y-1">
+              <div *ngFor="let session of history.getSessions()" class="group relative">
+                <button 
+                  (click)="loadSession(session)"
+                  [class.bg-white/10]="history.activeSessionId() === session.id"
+                  class="w-full text-left px-3 py-2 rounded-lg transition-all text-sm truncate pr-10 hover:bg-white/5"
+                >
+                  <span class="opacity-70 mr-2">{{ session.persona === 'priest' ? '⛪' : session.persona === 'researcher' ? '🎓' : '🕊️' }}</span>
+                  {{ session.title }}
+                </button>
+                <button 
+                  (click)="history.deleteSession(session.id); $event.stopPropagation()"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 p-1 opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="space-y-3">
             <h3 class="text-xs font-semibold text-blue-300 uppercase tracking-wider px-2">I am a...</h3>
             <div class="space-y-1">
@@ -214,11 +249,16 @@ export interface Corpus {
                    [class.rounded-tl-none]="msg.role === 'assistant'"
                    class="px-4 py-3 lg:px-5 lg:py-4 text-[14px] lg:text-[15px] leading-relaxed border border-brand-primary/5"
                  >
-                   <ng-container *ngIf="msg.role === 'assistant' && !msg.content && pendingResponse()">
-                     <div class="pending-dots">
-                       <div class="pending-dot"></div>
-                       <div class="pending-dot"></div>
-                       <div class="pending-dot"></div>
+                   <ng-container *ngIf="msg.role === 'assistant' && !msg.content && (pendingResponse() || currentStatus())">
+                     <div class="flex flex-col gap-2">
+                        <div class="pending-dots">
+                          <div class="pending-dot"></div>
+                          <div class="pending-dot"></div>
+                          <div class="pending-dot"></div>
+                        </div>
+                        <div *ngIf="currentStatus()" class="text-[11px] font-bold text-brand-primary/40 animate-pulse tracking-tight">
+                          {{ currentStatus() }}
+                        </div>
                      </div>
                    </ng-container>
                    <div *ngIf="msg.content || msg.role === 'user'" [innerHTML]="msg.content | markdown"></div>
@@ -296,12 +336,14 @@ export class PortalComponent implements AfterViewChecked {
   private auth = inject(Auth);
   stewardship = inject(StewardshipService);
   chatService = inject(ChatService);
+  history = inject(HistoryService);
   user$ = user(this.auth);
 
   messages = signal<ChatMessage[]>([]);
   currentInput = '';
   isLoading = signal(false);
   pendingResponse = signal(false);
+  currentStatus = signal<string | null>(null);
   isMenuOpen = signal(false);
 
   // Corpus Selection State
@@ -339,6 +381,10 @@ export class PortalComponent implements AfterViewChecked {
 
   setPersona(persona: Persona) {
     this.stewardship.setPersona(persona);
+    const sessionId = this.history.activeSessionId();
+    if (sessionId) {
+      this.history.updateSession(sessionId, { persona });
+    }
   }
 
   clearChat() {
@@ -419,6 +465,42 @@ export class PortalComponent implements AfterViewChecked {
     return (corpus.extensionFilters as any)[ext];
   }
 
+  createNewChat() {
+    this.messages.set([]);
+    this.removeFile();
+    this.history.activeSessionId.set(null);
+  }
+
+  loadSession(session: ChatSession) {
+    this.history.activeSessionId.set(session.id);
+    this.messages.set(session.messages);
+    this.stewardship.setPersona(session.persona);
+    this.activeFile.set(session.activeFile || null);
+    
+    // Sync available corpora from session if present
+    const envCorpora = (window as any).ENV?.corpora || [];
+    this.availableCorpora.set(envCorpora.map((c: any) => {
+      const isEnabled = session.corpusIds.includes(c.id);
+      return {
+        id: c.id,
+        name: c.name,
+        enabled: isEnabled,
+        extensionFilters: session.extensionFilters[c.id] ? {
+          pdf: session.extensionFilters[c.id].includes('pdf'),
+          word: session.extensionFilters[c.id].includes('word'),
+          txt: session.extensionFilters[c.id].includes('txt'),
+          other: session.extensionFilters[c.id].includes('other')
+        } : {
+          pdf: true, word: true, txt: true, other: true
+        }
+      };
+    }));
+
+    if (this.isMenuOpen()) {
+      this.isMenuOpen.set(false);
+    }
+  }
+
   async submitChat(event?: Event) {
     if (event) event.preventDefault();
     if (!this.currentInput || this.isLoading()) return;
@@ -426,69 +508,107 @@ export class PortalComponent implements AfterViewChecked {
     const prompt = this.currentInput;
     this.currentInput = '';
     
-    // Capture history BEFORE adding current messages
-    const history = [...this.messages()];
+    console.log('Portal: Submitting chat', { prompt });
 
-    // Add user message
-    this.messages.update(msgs => [...msgs, { role: 'user', content: prompt }]);
-    
-    this.isLoading.set(true);
-    this.pendingResponse.set(true);
-    
     try {
-      // Initialize assistant message
-      this.messages.update(msgs => [...msgs, { role: 'assistant', content: '' }]);
-      
-      // Get selected corpus IDs and extension filters
-      const corpusIds = this.availableCorpora()
-        .filter(c => c.enabled)
-        .map(c => c.id);
+      // 1. Get or Create Session
+      let sessionId = this.history.activeSessionId();
+      let isNewSession = false;
 
-      const extensionFilters: Record<string, string[]> = {};
-      this.availableCorpora().forEach(c => {
-        if (c.enabled) {
-          const activeExtensions = Object.entries(c.extensionFilters || {})
-            .filter(([_, enabled]) => enabled)
-            .map(([ext, _]) => ext);
-          extensionFilters[c.id] = activeExtensions;
+      if (!sessionId) {
+        console.log('Portal: No active session, creating one');
+        const corpusIds = this.availableCorpora()
+          .filter(c => c.enabled)
+          .map(c => c.id);
+
+        const extensionFilters: Record<string, string[]> = {};
+        this.availableCorpora().forEach(c => {
+          if (c.enabled) {
+            const activeExtensions = Object.entries(c.extensionFilters || {})
+              .filter(([_, enabled]) => enabled)
+              .map(([ext, _]) => ext);
+            extensionFilters[c.id] = activeExtensions;
+          }
+        });
+
+        const session = this.history.createSession(
+          this.stewardship.persona(),
+          corpusIds,
+          extensionFilters,
+          prompt
+        );
+        sessionId = session.id;
+        isNewSession = true;
+
+        if (this.activeFile()) {
+          this.history.updateSession(sessionId, { activeFile: this.activeFile()! });
         }
-      });
+      }
 
+      if (!sessionId) throw new Error('Failed to establish a chat session');
+
+      const userMsg: ChatMessage = { role: 'user', content: prompt };
+      this.history.addMessage(sessionId, userMsg);
+      this.messages.set(this.history.getSession(sessionId)?.messages || []);
+      
+      this.isLoading.set(true);
+      this.pendingResponse.set(true);
+      this.currentStatus.set('🔍 Searching Stewardship Resources...');
+      
+      // Initialize assistant message in history
+      this.history.addMessage(sessionId, { role: 'assistant', content: '' });
+      this.messages.set(this.history.getSession(sessionId)?.messages || []);
+      
+      const currentSession = this.history.getSession(sessionId);
+      if (!currentSession) throw new Error('Session lost after message update');
+      
       const stream = this.chatService.streamChat(
         prompt, 
-        this.stewardship.persona(), 
-        history,
-        this.activeFile()?.uri,
-        this.activeFile()?.mimeType,
-        corpusIds,
-        extensionFilters
+        currentSession.persona, 
+        currentSession.messages.slice(0, -2), // History excluding current user/assistant turn
+        currentSession.activeFile?.uri,
+        currentSession.activeFile?.mimeType,
+        currentSession.corpusIds,
+        currentSession.extensionFilters
       );
       
       this.isLoading.set(false);
 
+      let fullContent = '';
       for await (const data of stream) {
-        if (data.text && this.pendingResponse()) {
-          this.pendingResponse.set(false);
+        if (data.status) {
+          console.log('Portal: Status update', data.status);
+          this.currentStatus.set(data.status);
+          continue;
+        }
+
+        if (data.text !== undefined) {
+          if (this.pendingResponse()) {
+            this.pendingResponse.set(false);
+            this.currentStatus.set(null);
+          }
+          fullContent += data.text;
+          this.history.updateLastMessage(sessionId, fullContent);
+          this.messages.set(this.history.getSession(sessionId)?.messages || []);
         }
         
         if (data.error) {
           throw new Error(data.error);
         }
-
-        this.messages.update(msgs => {
-          const lastMsg = msgs[msgs.length - 1];
-          if (lastMsg && lastMsg.role === 'assistant') {
-            if (data.text) {
-              lastMsg.content += data.text;
-            }
-          }
-          return [...msgs];
-        });
       }
+
+      // Trigger auto-titling for new sessions
+      if (isNewSession) {
+        this.chatService.getChatTitle(prompt).then(title => {
+          this.history.updateSession(sessionId!, { title });
+        }).catch(err => console.error('Auto-titling failed:', err));
+      }
+
     } catch (error: any) {
-      console.error('Chat error:', error);
+      console.error('Portal: Chat error:', error);
       this.isLoading.set(false);
       this.pendingResponse.set(false);
+      this.currentStatus.set(null);
       
       let errorMessage = 'I encountered an error connecting to our resources. Please try again later.';
       
@@ -498,14 +618,14 @@ export class PortalComponent implements AfterViewChecked {
         errorMessage = error.message;
       }
 
-      this.messages.update(msgs => {
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content) {
-          lastMsg.content = errorMessage;
-          return [...msgs];
-        }
-        return [...msgs, { role: 'assistant', content: errorMessage }];
-      });
+      const sid = this.history.activeSessionId();
+      if (sid) {
+        this.history.updateLastMessage(sid, errorMessage);
+        this.messages.set(this.history.getSession(sid)?.messages || []);
+      } else {
+        // Fallback for UI if no session
+        this.messages.update(msgs => [...msgs, { role: 'assistant', content: errorMessage }]);
+      }
     }
   }
 }

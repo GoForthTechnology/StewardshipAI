@@ -65,7 +65,7 @@ class GCPRagAgent:
                 api_key=self.config.api_key,
             )
 
-    async def _manual_retrieve(self, prompt: str, corpus_id: str, allowed_extensions: List[str]) -> List[str]:
+    async def _manual_retrieve(self, prompt: str, corpus_id: str, allowed_extensions: List[str]) -> Dict[str, List[str]]:
         """Manually fetches chunks via REST API to bypass broken metadata filters."""
         with tracer.start_as_current_span("rag_manual_retrieve", attributes={"corpus_id": corpus_id}) as span:
             import httpx
@@ -102,13 +102,13 @@ class GCPRagAgent:
                 logger.error(f"Retrieval API failed: {resp.status_code} {resp.text}")
                 span.set_attribute("error", True)
                 span.set_attribute("status_code", resp.status_code)
-                return []
+                return {"texts": [], "uris": []}
                 
             data = resp.json()
             contexts = data.get("contexts", {}).get("contexts", [])
             
             if not allowed_extensions:
-                return []
+                return {"texts": [], "uris": []}
                 
             # 3. Filter the chunks using Python logic
             flat_allowed = []
@@ -142,7 +142,10 @@ class GCPRagAgent:
                 logger.info(f"RAG | Filtered {len(filtered_texts)} chunks from corpus {corpus_id}. Source URIs: {list(set(uris_seen))}")
                 span.set_attribute("chunks_count", len(filtered_texts))
                     
-            return filtered_texts
+            return {
+                "texts": filtered_texts,
+                "uris": list(set(uris_seen))
+            }
 
     async def _get_generate_content_config(self, user_email: str, persona: str = "parishioner", system_instruction_extra: str = "") -> types.GenerateContentConfig:
         if persona == "priest":
@@ -182,10 +185,13 @@ class GCPRagAgent:
         with tracer.start_as_current_span("agent_generate_response") as span:
             logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt} | File: {file_uri} | Mime: {mime_type} | Corpora: {corpus_ids} | Filters: {extension_filters}")
             
+            yield {"status": "🔍 Searching official resources..."}
+
             active_corpus_ids = corpus_ids if corpus_ids is not None else [self.config.rag_corpus_id]
             
             # 1. Retrieval Phase via REST API
             all_filtered_texts = []
+            all_uris = []
             
             # Parallelize retrieval from multiple corpora
             with tracer.start_as_current_span("retrieval_phase"):
@@ -199,12 +205,21 @@ class GCPRagAgent:
                     if isinstance(result, Exception):
                         logger.error(f"Manual retrieval failed for corpus {active_corpus_ids[i]}: {result}")
                     else:
-                        all_filtered_texts.extend(result)
+                        all_filtered_texts.extend(result.get("texts", []))
+                        all_uris.extend(result.get("uris", []))
 
             span.set_attribute("total_chunks_retrieved", len(all_filtered_texts))
 
             # 2. Context Construction
             with tracer.start_as_current_span("context_construction_phase"):
+                if persona == "researcher" and all_uris:
+                    # Extract unique file names from URIs
+                    file_names = list(set([uri.split("/")[-1] for uri in all_uris]))
+                    if file_names:
+                        yield {"status": f"📖 Analyzing: {', '.join(file_names[:3])}{'...' if len(file_names) > 3 else ''}"}
+                else:
+                    yield {"status": "📖 Analyzing relevant documents..."}
+
                 synthetic_context = ""
                 if all_filtered_texts:
                     synthetic_context = "OFFICIAL SOURCE CONTEXT:\n\n" + "\n\n---\n\n".join(all_filtered_texts)
@@ -262,6 +277,8 @@ class GCPRagAgent:
             
             # 4. Generation Phase
             with tracer.start_as_current_span("generation_phase"):
+                yield {"status": "✍️ Synthesizing response..."}
+
                 system_instruction_extra = ""
                 if not all_filtered_texts and not (file_uri and os.path.exists(file_uri)):
                     # Pastoral refusal if no context found after filtering
@@ -273,8 +290,11 @@ class GCPRagAgent:
                     system_instruction_extra=system_instruction_extra
                 )
 
-                return await self.client.aio.models.generate_content_stream(
+                response_stream = await self.client.aio.models.generate_content_stream(
                     model=self.model,
                     contents=contents,
                     config=config,
                 )
+                async for chunk in response_stream:
+                    if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
+                        yield {"text": chunk.text}
