@@ -65,6 +65,12 @@ python3 verify_rag.py
 
 This project enforces a "Test-First" connection where every requirement in the [openspec/specs/](./openspec/specs/) directory must be verified by an automated test.
 
+### Full Test Suite
+To run all tests (Backend, Frontend, and Coverage Audit) in one command:
+```bash
+./run_all_tests.sh
+```
+
 ### Traceability Audit
 Run the audit tool to see the current coverage of scenarios:
 ```bash

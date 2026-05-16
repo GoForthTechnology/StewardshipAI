@@ -40,7 +40,7 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         self.mock_config.location = "us-south1"
         self.mock_config.rag_corpus_id = "test-corpus"
         self.mock_config.magisterium_corpus_id = None
-        self.mock_config.diocese_name = "Stewardship AI Portal"
+        self.mock_config.diocese_name = "Stewardship Portal"
         self.mock_config.api_key = "test-key"
 
     async def test_Scenario_Request_with_Custom_Corpus_List_and_Scenario_Trace_Generation_and_Scenario_Logging_Retrieval_Metrics_and_Scenario_Instrumenting_Outgoing_Requests_and_Scenario_Retrieving_chunks_via_REST(self):
@@ -304,7 +304,14 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         Covers:
         - gcp-agent-auth: Scenario: Load configuration from environment
         """
-        with patch.dict('os.environ', {'GCP_PROJECT': 'p', 'GCP_LOCATION': 'l', 'GCP_RAG_CORPUS': 'c'}):
+        # Patch both variants to ensure 'p' is returned regardless of priority
+        with patch.dict('os.environ', {
+            'GCP_PROJECT_ID': 'p', 
+            'GCP_PROJECT': 'p', 
+            'GCP_LOCATION': 'l', 
+            'GCP_RAG_CORPUS_ID': 'c', 
+            'GCP_RAG_CORPUS': 'c'
+        }):
             from config import GCPConfig
             config = GCPConfig.from_env()
             self.assertEqual(config.project_id, 'p')

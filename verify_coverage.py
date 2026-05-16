@@ -168,7 +168,8 @@ if __name__ == "__main__":
         print(f"\nBaseline Coverage: {baseline:.1f}%")
         print(f"Current Coverage:  {current_coverage:.1f}%")
         
-        if current_coverage < baseline:
+        # Round to 1 decimal place to match baseline storage format
+        if round(current_coverage, 1) < baseline:
             print("\n❌ FAILED: Coverage dropped below baseline!")
             sys.exit(1)
         else:
