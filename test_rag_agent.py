@@ -8,8 +8,10 @@ from unittest.mock import MagicMock, AsyncMock, patch
 # Set dummy env vars before importing anything that might trigger get_config()
 os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("GCP_RAG_CORPUS_ID", "test-corpus")
+os.environ.setdefault("GCP_LOCATION", "us-south1")
 
 from rag_agent import GCPRagAgent
+from test_utils import _AsyncIterator
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -35,8 +37,12 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         self.config_patcher = patch('rag_agent.get_config', return_value=self.mock_config)
         self.config_patcher.start()
 
+        self.auth_patcher = patch('google.auth.default', return_value=(MagicMock(), 'test-project'))
+        self.auth_patcher.start()
+
     def tearDown(self):
         self.config_patcher.stop()
+        self.auth_patcher.stop()
 
     async def test_Scenario_Request_with_Custom_Corpus_List_and_Scenario_Trace_Generation_and_Scenario_Logging_Retrieval_Metrics_and_Scenario_Instrumenting_Outgoing_Requests_and_Scenario_Retrieving_chunks_via_REST(self):
         """
@@ -69,10 +75,7 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
             mock_post.return_value = mock_response
 
             agent = GCPRagAgent()
-            mock_stream = AsyncMock()
-            async def mock_iter(): yield MagicMock(text="final answer")
-            mock_stream.__aiter__.return_value = mock_iter()
-            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream)
+            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=_AsyncIterator([MagicMock(text="final answer")]))
 
             prompt = "What is stewardship?"
             user_email = "test@example.com"
@@ -102,10 +105,7 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
              patch('httpx.AsyncClient.post') as mock_post:
 
             agent = GCPRagAgent()
-            mock_stream = AsyncMock()
-            async def mock_iter(): yield MagicMock(text="tailored answer")
-            mock_stream.__aiter__.return_value = mock_iter()
-            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream)
+            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=_AsyncIterator([MagicMock(text="tailored answer")]))
 
             # 1. Test Priest Tailoring
             async for _ in agent.generate_response("Leadership?", "p@e.com", persona="priest"):
@@ -137,10 +137,7 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
              patch('httpx.AsyncClient.post') as mock_post:
 
             agent = GCPRagAgent()
-            mock_stream = AsyncMock()
-            async def mock_iter(): yield MagicMock(text="research answer [1]")
-            mock_stream.__aiter__.return_value = mock_iter()
-            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream)
+            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=_AsyncIterator([MagicMock(text="research answer [1]")]))
 
             async for _ in agent.generate_response("Theology?", "p@e.com", persona="researcher"):
                 pass
@@ -167,10 +164,7 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
             mock_post.return_value = mock_response
 
             agent = GCPRagAgent()
-            mock_stream = AsyncMock()
-            async def mock_iter(): yield MagicMock(text="answer")
-            mock_stream.__aiter__.return_value = mock_iter()
-            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream)
+            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=_AsyncIterator([MagicMock(text="answer")]))
 
             history = [{"role": "user", "content": "Previous"}]
             async for _ in agent.generate_response("Current", "p@e.com", history=history):
@@ -196,10 +190,7 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
             mock_post.return_value = mock_response
 
             agent = GCPRagAgent()
-            mock_stream = AsyncMock()
-            async def mock_iter(): yield MagicMock(text="ans")
-            mock_stream.__aiter__.return_value = mock_iter()
-            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream)
+            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=_AsyncIterator([MagicMock(text="ans")]))
 
             # Standard
             yields = []
@@ -225,10 +216,7 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
              patch('rag_agent.logger') as mock_logger:
 
             agent = GCPRagAgent()
-            mock_stream = AsyncMock()
-            async def mock_iter(): yield MagicMock(text="ans")
-            mock_stream.__aiter__.return_value = mock_iter()
-            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream)
+            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=_AsyncIterator([MagicMock(text="ans")]))
 
             async for _ in agent.generate_response("Question", "user@test.com"):
                 pass
@@ -280,7 +268,8 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         agent = GCPRagAgent()
         config = await agent._get_generate_content_config("u@e.com")
         instruction = config.system_instruction[0].text
-        self.assertIn("SHALL NOT include explicit citations", instruction)
+        # Emphasize delivering core facts from sources
+        self.assertIn("Focus on delivering the core facts", instruction)
 
     def test_Scenario_Successful_Connection_to_RAG_Corpus(self):
         """
@@ -305,10 +294,7 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
              patch('google.auth.default', return_value=(MagicMock(), 'project-id')), \
              patch('httpx.AsyncClient.post') as mock_post:
             agent = GCPRagAgent()
-            mock_stream = AsyncMock()
-            async def mock_iter(): yield MagicMock(text="c")
-            mock_stream.__aiter__.return_value = mock_iter()
-            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream)
+            agent.client.aio.models.generate_content_stream = AsyncMock(return_value=_AsyncIterator([MagicMock(text="c")]))
             yields = []
             async for y in agent.generate_response("p", "u"): yields.append(y)
             self.assertTrue(any("status" in y for y in yields))
@@ -356,7 +342,8 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         """
         agent = GCPRagAgent()
         config = await agent._get_generate_content_config("u")
-        self.assertIn("use welcoming, conversational language", config.system_instruction[0].text)
+        # Direct and pastoral tone prioritized
+        self.assertIn("direct, concise, and pastoral", config.system_instruction[0].text)
 
     async def test_Scenario_Robust_Parameter_Handling(self):
         """

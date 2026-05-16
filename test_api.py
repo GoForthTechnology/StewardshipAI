@@ -6,9 +6,11 @@ from unittest.mock import MagicMock, patch, AsyncMock
 # Set dummy env vars before importing api to avoid config validation errors
 os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("GCP_RAG_CORPUS_ID", "test-corpus")
+os.environ.setdefault("GCP_LOCATION", "us-south1")
 
 from fastapi.testclient import TestClient
 from api import app
+from test_utils import _AsyncIterator
 
 class TestAPI(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -142,10 +144,7 @@ class TestAPI(unittest.IsolatedAsyncioTestCase):
         mock_pdf.return_value.pages = [mock_page]
         
         with patch.object(agent.client.aio.models, 'generate_content_stream', new_callable=AsyncMock) as mock_stream_call:
-            mock_stream = AsyncMock()
-            async def mock_iter(): yield MagicMock(text="ans")
-            mock_stream.__aiter__.return_value = mock_iter()
-            mock_stream_call.return_value = mock_stream
+            mock_stream_call.return_value = _AsyncIterator([MagicMock(text="ans")])
             
             async for _ in agent.generate_response("prompt", "u@e.com", file_uri="fake.pdf", mime_type="application/pdf"):
                 pass

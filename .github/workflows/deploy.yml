@@ -14,10 +14,6 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    env:
-      GCP_PROJECT_ID: "dummy-project"
-      GCP_RAG_CORPUS_ID: "dummy-corpus"
-      GCP_LOCATION: "us-south1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
