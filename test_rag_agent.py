@@ -18,31 +18,30 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
-    def setUp(self):
-        # Setup in-memory span exporter for verification
-        self.exporter = InMemorySpanExporter()
-        self.provider = TracerProvider()
-        self.provider.add_span_processor(SimpleSpanProcessor(self.exporter))
-        trace.set_tracer_provider(self.provider)
-        self.tracer = trace.get_tracer("stewardship-ai")
+    @classmethod
+    def setUpClass(cls):
+        # Set tracer provider once to avoid warnings
+        cls.provider = TracerProvider()
+        cls.exporter = InMemorySpanExporter()
+        cls.provider.add_span_processor(SimpleSpanProcessor(cls.exporter))
+        try:
+            trace.set_tracer_provider(cls.provider)
+        except ValueError:
+            pass # Already set
+        cls.tracer = trace.get_tracer("stewardship-ai")
 
-        # Global mock for config to avoid initialization errors
+    def setUp(self):
+        # Clear exporter for each test
+        self.exporter.reset()
+        
+        # Default mock config for most tests
         self.mock_config = MagicMock()
         self.mock_config.project_id = "test-project"
         self.mock_config.location = "us-south1"
         self.mock_config.rag_corpus_id = "test-corpus"
+        self.mock_config.magisterium_corpus_id = None
         self.mock_config.diocese_name = "Stewardship AI Portal"
         self.mock_config.api_key = "test-key"
-        
-        self.config_patcher = patch('rag_agent.get_config', return_value=self.mock_config)
-        self.config_patcher.start()
-
-        self.auth_patcher = patch('google.auth.default', return_value=(MagicMock(), 'test-project'))
-        self.auth_patcher.start()
-
-    def tearDown(self):
-        self.config_patcher.stop()
-        self.auth_patcher.stop()
 
     async def test_Scenario_Request_with_Custom_Corpus_List_and_Scenario_Trace_Generation_and_Scenario_Logging_Retrieval_Metrics_and_Scenario_Instrumenting_Outgoing_Requests_and_Scenario_Retrieving_chunks_via_REST(self):
         """
