@@ -61,6 +61,29 @@ Run the verification script to test groundedness, source lockdown, and citations
 python3 verify_rag.py
 ```
 
+## Quality & Traceability
+
+This project enforces a "Test-First" connection where every requirement in the [openspec/specs/](./openspec/specs/) directory must be verified by an automated test.
+
+### Traceability Audit
+Run the audit tool to see the current coverage of scenarios:
+```bash
+python3 verify_coverage.py
+```
+
+### Coverage Guardrail
+The CI/CD pipeline prevents deployments if the coverage percentage drops below the current baseline.
+
+**To update the baseline (after improving coverage):**
+```bash
+python3 verify_coverage.py --update-baseline
+```
+
+**To verify only modified specifications (useful for local development):**
+```bash
+python3 verify_coverage.py --check-modified
+```
+
 ## Development Workflow: OpenSpec
 
 This project uses **OpenSpec**, a specification-driven development workflow. All major changes follow a formal lifecycle:

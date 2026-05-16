@@ -1,4 +1,4 @@
-## CI/CD Authentication
+## MODIFIED Requirements
 
 ### Requirement: Keyless CI/CD Authentication
 The system SHALL use Workload Identity Federation (WIF) to authenticate the CI/CD pipeline with Google Cloud, avoiding the use of long-lived service account keys.
@@ -12,10 +12,3 @@ The system SHALL use Workload Identity Federation (WIF) to authenticate the CI/C
 - **WHEN** the push event occurs on the `main` branch
 - **THEN** the pipeline SHALL execute a `verify` job (Unit Tests + Traceability Audit) before proceeding to the `deploy` job.
 - **AND** the `deploy` job SHALL depend on the successful completion of the `verify` job.
-
-### Requirement: Repository-Restricted Impersonation
-The CI/CD impersonation SHALL be strictly limited to the specific GitHub repository owning the project.
-
-#### Scenario: unauthorized Impersonation Blocked
-- **WHEN** an action from a DIFFERENT repository attempts to use the Workload Identity Pool
-- **THEN** Google Cloud IAM SHALL reject the request.
