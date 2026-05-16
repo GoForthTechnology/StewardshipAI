@@ -6,9 +6,11 @@ import unittest
 from unittest.mock import MagicMock, AsyncMock, patch
 
 # Set dummy env vars before importing anything that might trigger get_config()
+os.environ.setdefault("TESTING", "true")
 os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("GCP_RAG_CORPUS_ID", "test-corpus")
 os.environ.setdefault("GCP_LOCATION", "us-south1")
+os.environ.setdefault("DIOCESE_NAME", "Stewardship Portal")
 
 from rag_agent import GCPRagAgent
 from test_utils import _AsyncIterator
@@ -18,30 +20,33 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
-    @classmethod
-    def setUpClass(cls):
-        # Set tracer provider once to avoid warnings
-        cls.provider = TracerProvider()
-        cls.exporter = InMemorySpanExporter()
-        cls.provider.add_span_processor(SimpleSpanProcessor(cls.exporter))
-        try:
-            trace.set_tracer_provider(cls.provider)
-        except ValueError:
-            pass # Already set
-        cls.tracer = trace.get_tracer("stewardship-ai")
-
     def setUp(self):
-        # Clear exporter for each test
-        self.exporter.clear()
+        # Mute real observability to prevent background trace errors
+        self.obs_patcher = patch('observability.setup_observability')
+        self.obs_patcher.start()
+
+        # Set tracer provider for this test instance
+        self.provider = TracerProvider()
+        self.exporter = InMemorySpanExporter()
+        self.provider.add_span_processor(SimpleSpanProcessor(self.exporter))
         
-        # Default mock config for most tests
-        self.mock_config = MagicMock()
-        self.mock_config.project_id = "test-project"
-        self.mock_config.location = "us-south1"
-        self.mock_config.rag_corpus_id = "test-corpus"
-        self.mock_config.magisterium_corpus_id = None
-        self.mock_config.diocese_name = "Stewardship Portal"
-        self.mock_config.api_key = "test-key"
+        # Patch the global tracer provider and the get_tracer helper
+        self.tp_patcher = patch('opentelemetry.trace.get_tracer_provider', return_value=self.provider)
+        self.tp_patcher.start()
+        
+        self.tracer = self.provider.get_tracer("stewardship-ai")
+        self.tracer_patcher = patch('rag_agent.get_tracer', return_value=self.tracer)
+        self.tracer_patcher.start()
+
+        # Patch auth globally for these tests
+        self.global_auth_patcher = patch('google.auth.default', return_value=(MagicMock(), 'test-project'))
+        self.global_auth_patcher.start()
+
+    def tearDown(self):
+        self.global_auth_patcher.stop()
+        self.tracer_patcher.stop()
+        self.tp_patcher.stop()
+        self.obs_patcher.stop()
 
     async def test_Scenario_Request_with_Custom_Corpus_List_and_Scenario_Trace_Generation_and_Scenario_Logging_Retrieval_Metrics_and_Scenario_Instrumenting_Outgoing_Requests_and_Scenario_Retrieving_chunks_via_REST(self):
         """
@@ -275,13 +280,11 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         Covers:
         - gcp-rag-agent: Scenario: Successful Connection to RAG Corpus
         """
-        with patch('google.genai.Client') as mock_client, \
-             patch('google.auth.default', return_value=(MagicMock(), 'project-id')):
-            with patch('config.get_config') as mock_conf_call:
-                mock_conf = MagicMock()
-                mock_conf.project_id = "p"; mock_conf.location = "l"
-                mock_conf_call.return_value = mock_conf
+        with patch('google.genai.Client') as mock_client:
+            # GCPRagAgent uses get_config() which reads from env
+            with patch.dict('os.environ', {'GCP_PROJECT_ID': 'p', 'GCP_LOCATION': 'l'}):
                 agent = GCPRagAgent()
+                _ = agent.client
                 mock_client.assert_called_with(vertexai=True, project="p", location="l")
 
     async def test_Scenario_Streaming_Mixed_Content(self):
@@ -290,7 +293,6 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         - status-streaming-protocol: Scenario: Streaming Mixed Content
         """
         with patch('google.genai.Client'), \
-             patch('google.auth.default', return_value=(MagicMock(), 'project-id')), \
              patch('httpx.AsyncClient.post') as mock_post:
             agent = GCPRagAgent()
             agent.client.aio.models.generate_content_stream = AsyncMock(return_value=_AsyncIterator([MagicMock(text="c")]))
@@ -323,10 +325,9 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         - gcp-agent-auth: Scenario: Use API Key
         """
         with patch('google.genai.Client') as mock_client:
-            with patch('config.get_config') as mock_conf_call:
-                m = MagicMock(); m.project_id = "p"; m.location = "l"
-                mock_conf_call.return_value = m
+            with patch.dict('os.environ', {'GCP_PROJECT_ID': 'p', 'GCP_LOCATION': 'l'}):
                 agent = GCPRagAgent()
+                _ = agent.client
                 mock_client.assert_called_with(vertexai=True, project="p", location="l")
 
     def test_Scenario_Use_Service_Account_Key(self):
@@ -335,11 +336,14 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         - gcp-agent-auth: Scenario: Use Service Account Key
         """
         with patch('google.genai.Client') as mock_client:
-            with patch.dict('os.environ', {'GOOGLE_APPLICATION_CREDENTIALS': 'k.json'}):
-                with patch('config.get_config') as mc:
-                    m = MagicMock(); m.project_id = "p"; m.location = "l"; mc.return_value = m
-                    agent = GCPRagAgent()
-                    mock_client.assert_called_with(vertexai=True, project="p", location="l")
+            with patch.dict('os.environ', {
+                'GCP_PROJECT_ID': 'p', 
+                'GCP_LOCATION': 'l',
+                'GOOGLE_APPLICATION_CREDENTIALS': 'k.json'
+            }):
+                agent = GCPRagAgent()
+                _ = agent.client
+                mock_client.assert_called_with(vertexai=True, project="p", location="l")
 
     async def test_Scenario_Conversational_Tone_in_Responses(self):
         """

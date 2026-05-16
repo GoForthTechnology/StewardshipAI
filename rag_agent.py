@@ -12,7 +12,9 @@ from opentelemetry import trace
 
 # Get logger (configuration is handled in the main entry point)
 logger = logging.getLogger("stewardship-ai")
-tracer = trace.get_tracer("stewardship-ai")
+
+def get_tracer():
+    return trace.get_tracer("stewardship-ai")
 
 EXTENSION_GROUPS = {
     "pdf": [".pdf"],
@@ -50,24 +52,29 @@ class GCPRagAgent:
     def __init__(self, model: str = "gemini-2.5-flash"):
         self.config = get_config()
         self.model = model
+        self._client = None
 
-        # The GenAI SDK handles authentication prioritization:
-        # If project/location are provided, use Vertex AI mode (ADC).
-        # Otherwise, fall back to API Key if available.
-        if self.config.project_id and self.config.location:
-            self.client = genai.Client(
-                vertexai=True,
-                project=self.config.project_id,
-                location=self.config.location,
-            )
-        else:
-            self.client = genai.Client(
-                api_key=self.config.api_key,
-            )
+    @property
+    def client(self):
+        if self._client is None:
+            # The GenAI SDK handles authentication prioritization:
+            # If project/location are provided, use Vertex AI mode (ADC).
+            # Otherwise, fall back to API Key if available.
+            if self.config.project_id and self.config.location:
+                self._client = genai.Client(
+                    vertexai=True,
+                    project=self.config.project_id,
+                    location=self.config.location,
+                )
+            else:
+                self._client = genai.Client(
+                    api_key=self.config.api_key,
+                )
+        return self._client
 
     async def _manual_retrieve(self, prompt: str, corpus_id: str, allowed_extensions: List[str]) -> Dict[str, List[str]]:
         """Manually fetches chunks via REST API to bypass broken metadata filters."""
-        with tracer.start_as_current_span("rag_manual_retrieve", attributes={"corpus_id": corpus_id}) as span:
+        with get_tracer().start_as_current_span("rag_manual_retrieve", attributes={"corpus_id": corpus_id}) as span:
             import httpx
             import google.auth
             from google.auth.transport.requests import Request as GoogleAuthRequest
@@ -182,7 +189,7 @@ class GCPRagAgent:
 
     async def generate_response(self, prompt: str, user_email: str, persona: str = "parishioner", history: Optional[List[dict]] = None, corpus_ids: Optional[List[str]] = None, extension_filters: Optional[Dict[str, List[str]]] = None, file_uri: Optional[str] = None, mime_type: Optional[str] = None):
         """Generates a response using synthetic RAG via REST API manual retrieval."""
-        with tracer.start_as_current_span("agent_generate_response") as span:
+        with get_tracer().start_as_current_span("agent_generate_response") as span:
             logger.info(f"AUDIT | {datetime.now().isoformat()} | User: {user_email} | Persona: {persona} | Prompt: {prompt} | File: {file_uri} | Mime: {mime_type} | Corpora: {corpus_ids} | Filters: {extension_filters}")
             
             yield {"status": "🔍 Searching official resources..."}
@@ -194,7 +201,7 @@ class GCPRagAgent:
             all_uris = []
             
             # Parallelize retrieval from multiple corpora
-            with tracer.start_as_current_span("retrieval_phase"):
+            with get_tracer().start_as_current_span("retrieval_phase"):
                 retrieval_tasks = []
                 for c_id in active_corpus_ids:
                     allowed = (extension_filters or {}).get(c_id, ["pdf", "word", "txt", "other"])
@@ -211,7 +218,7 @@ class GCPRagAgent:
             span.set_attribute("total_chunks_retrieved", len(all_filtered_texts))
 
             # 2. Context Construction
-            with tracer.start_as_current_span("context_construction_phase"):
+            with get_tracer().start_as_current_span("context_construction_phase"):
                 if persona == "researcher" and all_uris:
                     # Extract unique file names from URIs
                     file_names = list(set([uri.split("/")[-1] for uri in all_uris]))
@@ -276,7 +283,7 @@ class GCPRagAgent:
                 )
             
             # 4. Generation Phase
-            with tracer.start_as_current_span("generation_phase"):
+            with get_tracer().start_as_current_span("generation_phase"):
                 yield {"status": "✍️ Synthesizing response..."}
 
                 system_instruction_extra = ""

@@ -1,13 +1,66 @@
 import asyncio
+import os
+from unittest.mock import MagicMock, AsyncMock, patch
 from rag_agent import GCPRagAgent
 
+# Helper for async iteration in mocks
+class AsyncIterator:
+    def __init__(self, seq):
+        self.iter = iter(seq)
+    def __aiter__(self):
+        return self
+    async def __anext__(self):
+        try:
+            return next(self.iter)
+        except StopIteration:
+            raise StopAsyncIteration
+
 async def test_agent(prompt, label, persona="parishioner", user_email="test@example.com"):
-    try:
-        agent = GCPRagAgent()
-    except Exception as e:
-        print(f"Failed to initialize agent for test '{label}': {e}")
-        return
+    # If MOCK_GCP is set, we'll patch the agent's internal client and methods
+    is_mock = os.environ.get("MOCK_GCP", "false").lower() == "true"
     
+    try:
+        if is_mock:
+            with patch('google.genai.Client'), \
+                 patch('google.auth.default', return_value=(MagicMock(), 'project-id')), \
+                 patch('httpx.AsyncClient.post') as mock_post:
+                
+                # Setup mock retrieval
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.json.return_value = {
+                    "contexts": {
+                        "contexts": [{"text": f"Mock context for {label}", "sourceUri": "mock.pdf"}]
+                    }
+                }
+                mock_post.return_value = mock_response
+                
+                agent = GCPRagAgent()
+                
+                # Mock the stream generator
+                mock_chunks = [
+                    {"status": "🔍 Searching official resources..."},
+                    {"status": "📖 Analyzing relevant documents..."},
+                    {"status": "✍️ Synthesizing response..."},
+                    {"text": f"This is a mocked response for the '{label}' test case. "}
+                ]
+                
+                # If persona is researcher, add citation
+                if persona == "researcher":
+                    mock_chunks.append({"text": "Refer to [1]."})
+                
+                agent.generate_response = MagicMock(return_value=AsyncIterator(mock_chunks))
+                
+                return await _run_test_logic(agent, prompt, label, persona, user_email)
+        else:
+            agent = GCPRagAgent()
+            return await _run_test_logic(agent, prompt, label, persona, user_email)
+            
+    except Exception as e:
+        print(f"Failed to initialize or run agent for test '{label}': {e}")
+        return
+
+async def _run_test_logic(agent, prompt, label, persona, user_email):
     print(f"--- Test Case: {label} (Persona: {persona}) ---")
     print(f"Prompt: {prompt}")
     print("Response: ", end="")

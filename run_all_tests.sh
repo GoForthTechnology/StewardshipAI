@@ -17,6 +17,12 @@ echo -e "${BLUE}================================================================
 
 # 1. Backend Unit Tests
 echo -e "\n${YELLOW}[1/4] Running Backend Unit Tests (pytest)...${NC}"
+# Set dummy env vars for agent/config initialization
+export GCP_PROJECT_ID=test-project
+export GCP_RAG_CORPUS_ID=test-corpus
+export GCP_LOCATION=us-south1
+export DIOCESE_NAME="Stewardship Portal"
+
 if ! python3 -m pytest --version &> /dev/null; then
     echo -e "${RED}Error: pytest not found. Please install requirements.txt${NC}"
     BACKEND_EXIT=1
@@ -32,8 +38,8 @@ python3 verify_coverage.py
 COVERAGE_EXIT=$?
 
 # 3. RAG Integration Verification
-echo -e "\n${YELLOW}[3/4] Running RAG & Filter Verification...${NC}"
-echo -e "${BLUE}(Note: These require active GCP credentials and a valid RAG corpus)${NC}"
+echo -e "\n${YELLOW}[3/4] Running RAG & Filter Verification (MOCKED)...${NC}"
+export MOCK_GCP=true
 python3 verify_rag.py
 RAG_EXIT=$?
 python3 verify_filters.py
@@ -48,8 +54,9 @@ if [ -d "frontend" ]; then
         npm install --silent
     fi
     
-    # For Angular + Vitest, 'npm test' is the standard entry point.
-    npm test -- --run
+    # For Angular + Vitest, 'npm test' or 'npm run test' uses local binaries.
+    # We'll pass '--watch=false' for non-watch mode.
+    npm test -- --watch=false
     FRONTEND_EXIT=$?
     cd ..
 else

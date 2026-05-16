@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
 
 # Set dummy env vars before importing api to avoid config validation errors
+os.environ.setdefault("TESTING", "true")
 os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("GCP_RAG_CORPUS_ID", "test-corpus")
 os.environ.setdefault("GCP_LOCATION", "us-south1")

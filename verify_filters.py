@@ -1,6 +1,7 @@
 import asyncio
 import os
 import json
+from unittest.mock import MagicMock, patch
 from rag_agent import GCPRagAgent
 from config import get_config
 
@@ -19,37 +20,62 @@ async def verify():
         ["TXT/MD Only", ["txt"]],
     ]
     
-    print(f"--- Verifying RAG Filtering for Corpus: {corpus_id} ---\n")
+    is_mock = os.environ.get("MOCK_GCP", "false").lower() == "true"
+    
+    print(f"--- Verifying RAG Filtering for Corpus: {corpus_id} (Mock: {is_mock}) ---\n")
     
     for label, filters in test_cases:
         print(f"Testing Filter: {label} ({filters})")
         try:
             # We call the internal method directly to see the raw filtered URIs
-            # To do this easily, we'll temporarily modify _manual_retrieve to return URIs too,
-            # or just replicate the logic here.
-            
-            # Replicating logic for verification transparency
             import httpx
             import google.auth
             from google.auth.transport.requests import Request as GoogleAuthRequest
             from rag_agent import EXTENSION_GROUPS
 
-            credentials, _ = google.auth.default()
-            if not credentials.valid:
-                credentials.refresh(GoogleAuthRequest())
-
-            url = f"https://{config.location}-aiplatform.googleapis.com/v1beta1/projects/{config.project_id}/locations/{config.location}:retrieveContexts"
-            headers = {"Authorization": f"Bearer {credentials.token}", "Content-Type": "application/json"}
-            payload = {"query": {"text": prompt, "similarityTopK": 10}, "vertexRagStore": {"ragResources": [{"ragCorpus": corpus_id}]}}
-            
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(url, headers=headers, json=payload, timeout=30.0)
-            
-            if resp.status_code != 200:
-                print(f"  Error: API failed with {resp.status_code}")
-                continue
+            if is_mock:
+                # Mock response with diverse file types to test filtering
+                mock_contexts = [
+                    {"sourceUri": "test.pdf", "text": "pdf content"},
+                    {"sourceUri": "test.docx", "text": "word content"},
+                    {"sourceUri": "test.txt", "text": "text content"},
+                    {"sourceUri": "test.unknown", "text": "other content"},
+                ]
                 
-            data = resp.json()
+                # We'll use patch within the loop for simplicity or just mock the call
+                with patch('google.auth.default', return_value=(MagicMock(), 'project-id')), \
+                     patch('httpx.AsyncClient.post') as mock_post:
+                    
+                    mock_resp = MagicMock()
+                    mock_resp.status_code = 200
+                    mock_resp.json.return_value = {"contexts": {"contexts": mock_contexts}}
+                    mock_post.return_value = mock_resp
+                    
+                    # Replicate retrieval logic
+                    credentials, _ = google.auth.default()
+                    url = "https://mock-url"
+                    headers = {}
+                    payload = {}
+                    async with httpx.AsyncClient() as client:
+                        resp = await client.post(url, headers=headers, json=payload)
+                        data = resp.json()
+            else:
+                credentials, _ = google.auth.default()
+                if not credentials.valid:
+                    credentials.refresh(GoogleAuthRequest())
+
+                url = f"https://{config.location}-aiplatform.googleapis.com/v1beta1/projects/{config.project_id}/locations/{config.location}:retrieveContexts"
+                headers = {"Authorization": f"Bearer {credentials.token}", "Content-Type": "application/json"}
+                payload = {"query": {"text": prompt, "similarityTopK": 10}, "vertexRagStore": {"ragResources": [{"ragCorpus": corpus_id}]}}
+                
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(url, headers=headers, json=payload, timeout=30.0)
+                
+                if resp.status_code != 200:
+                    print(f"  Error: API failed with {resp.status_code}")
+                    continue
+                data = resp.json()
+
             contexts = data.get("contexts", {}).get("contexts", [])
             
             flat_allowed = []

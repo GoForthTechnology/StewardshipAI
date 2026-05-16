@@ -30,7 +30,7 @@ This document outlines the core engineering standards, architecture, and workflo
 
 ## Code Style
 
-- **Python**: Use Python 3.10+ features (type hints, async/await).
+- **Python**: Use Python 3.10+ features (type hints, async/await). Always use `pip3` instead of `pip` for package management.
 - **Naming**: `snake_case` for files and variables, `PascalCase` for classes.
 - **Documentation**: Provide docstrings for all public classes and methods.
 

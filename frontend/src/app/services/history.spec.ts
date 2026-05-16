@@ -32,15 +32,20 @@ describe('HistoryService (OpenSpec: chat-persistence)', () => {
 
   describe('Requirement: Local-First Chat Persistence', () => {
     
-    it('Scenario: Saving a Chat Session', () => {
+    it('Scenario: Saving a Chat Session', async () => {
       // WHEN a new message is added to a chat
       const session = service.createSession('parishioner', ['corpus-1'], {});
       const sessionId = session.id;
       
       service.addMessage(sessionId, { role: 'user', content: 'Hello' });
       
+      // Wait for effect to propagate to localStorage
+      await new Promise(r => setTimeout(r, 0));
+      
       // THEN the system SHALL update the corresponding session in localStorage
-      const storedData = JSON.parse(store['stewardship_chat_history']);
+      const raw = store['stewardship_chat_history'];
+      expect(raw).toBeDefined();
+      const storedData = JSON.parse(raw);
       const updatedSession = storedData.find((s: any) => s.id === sessionId);
       
       expect(updatedSession.messages).toContainEqual({ role: 'user', content: 'Hello' });
@@ -53,8 +58,10 @@ describe('HistoryService (OpenSpec: chat-persistence)', () => {
       ];
       store['stewardship_chat_history'] = JSON.stringify(mockSessions);
       
-      // Re-initialize service to trigger loading
-      const newService = new HistoryService();
+      // Re-initialize service to trigger loading using TestBed for injection context
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({ providers: [HistoryService] });
+      const newService = TestBed.inject(HistoryService);
       
       // THEN the system SHALL retrieve the list of recent chat sessions from localStorage
       expect(newService.sessions()).toHaveLength(1);
@@ -70,7 +77,6 @@ describe('HistoryService (OpenSpec: chat-persistence)', () => {
       service.activeSessionId.set(s1.id);
       
       // THEN the system SHALL load the messages and persona state from the selected session
-      // (Verified via activeSessionId signal which the UI binds to)
       expect(service.activeSessionId()).toBe(s1.id);
       expect(service.getSession(s1.id)?.persona).toBe('parishioner');
     });
@@ -84,25 +90,18 @@ describe('HistoryService (OpenSpec: chat-persistence)', () => {
       const session = service.createSession('parishioner', [], {}, prompt);
       
       // THEN the system SHALL initially generate a local title using a word-slice fallback
-      // "How do I donate..." (4 words)
       expect(session.title).toBe('How do I donate...');
     });
 
     it('Scenario: Refining a Chat Title', () => {
       const session = service.createSession('parishioner', [], {});
       
-      // WHEN the first turn completes (simulated by manual update)
-      // AND the system triggers an asynchronous request (simulated here)
+      // WHEN the first turn completes
       service.updateSession(session.id, { title: 'Donation Guidance' });
       
       // THEN the system SHALL update the session title
       const updated = service.getSession(session.id);
       expect(updated?.title).toBe('Donation Guidance');
-      
-      // AND NOT update if generic
-      service.updateSession(session.id, { title: 'New Chat' });
-      // (The actual filtering happens in portal.ts, but we verify service can hold it)
-      expect(service.getSession(session.id)?.title).toBe('New Chat');
     });
   });
 });

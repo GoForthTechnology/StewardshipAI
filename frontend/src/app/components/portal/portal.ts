@@ -520,6 +520,11 @@ export class PortalComponent implements AfterViewChecked {
     }
   }
 
+  async onDiscoveryAction(prompt: string) {
+    this.currentInput = prompt;
+    await this.submitChat();
+  }
+
   async submitChat(event?: Event) {
     if (event) event.preventDefault();
     if (!this.currentInput || this.isLoading()) return;

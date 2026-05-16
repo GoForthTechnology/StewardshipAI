@@ -37,12 +37,16 @@ def setup_observability(app=None):
     provider = TracerProvider(resource=resource)
     
     try:
-        # Initialize Cloud Trace Exporter
-        # This will use Application Default Credentials (ADC)
-        exporter = CloudTraceSpanExporter()
-        processor = BatchSpanProcessor(exporter)
-        provider.add_span_processor(processor)
-        logging.info("OpenTelemetry: Cloud Trace exporter initialized.")
+        # Prevent GCP calls during tests
+        if os.environ.get("TESTING") == "true":
+            logging.info("OpenTelemetry: Skipping Cloud Trace exporter in testing mode.")
+        else:
+            # Initialize Cloud Trace Exporter
+            # This will use Application Default Credentials (ADC)
+            exporter = CloudTraceSpanExporter()
+            processor = BatchSpanProcessor(exporter)
+            provider.add_span_processor(processor)
+            logging.info("OpenTelemetry: Cloud Trace exporter initialized.")
     except Exception as e:
         logging.error(f"OpenTelemetry: Failed to initialize Cloud Trace exporter: {e}")
         # Fallback to console or no-op if necessary (BatchSpanProcessor won't be added)
