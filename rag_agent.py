@@ -27,8 +27,8 @@ SYSTEM_INSTRUCTION = """You are a professional and pastoral Stewardship Guide fo
 {persona_instruction}
 
 Use the following Source Hierarchy for all responses:
-1. Universal Doctrine: Ground all moral, theological, and social principles in the Magisterium documents (e.g., Catechism, Papal encyclicals). These define the "What" and the "Why" of our mission.
-2. Practical Application: Ground all specific guidance on implementation, local parish life, and practical "how-to" steps in the Stewardship resources. These define the "How" of our mission.
+1. Universal Doctrine: Ground all moral, theological, and social principles in documents labeled **[SOURCE: Magisterium Corpus]**. These define the "What" and the "Why" of our mission.
+2. Practical Application: Ground all specific guidance on implementation, local parish life, and practical "how-to" steps in documents labeled **[SOURCE: Stewardship Corpus]**. These define the "How" of our mission.
 3. Synthesis: Always ensure practical advice is consistent with universal doctrine.
 
 Use the following rules for all responses:
@@ -197,8 +197,7 @@ class GCPRagAgent:
             active_corpus_ids = corpus_ids if corpus_ids is not None else [self.config.rag_corpus_id]
             
             # 1. Retrieval Phase via REST API
-            all_filtered_texts = []
-            all_uris = []
+            all_chunks = [] # List of tuples (corpus_id, text, uri)
             
             # Parallelize retrieval from multiple corpora
             with get_tracer().start_as_current_span("retrieval_phase"):
@@ -209,16 +208,18 @@ class GCPRagAgent:
                 
                 results = await asyncio.gather(*retrieval_tasks, return_exceptions=True)
                 for i, result in enumerate(results):
+                    c_id = active_corpus_ids[i]
                     if isinstance(result, Exception):
-                        logger.error(f"Manual retrieval failed for corpus {active_corpus_ids[i]}: {result}")
+                        logger.error(f"Manual retrieval failed for corpus {c_id}: {result}")
                     else:
-                        all_filtered_texts.extend(result.get("texts", []))
-                        all_uris.extend(result.get("uris", []))
+                        for text, uri in zip(result.get("texts", []), result.get("uris", [])):
+                            all_chunks.append((c_id, text, uri))
 
-            span.set_attribute("total_chunks_retrieved", len(all_filtered_texts))
+            span.set_attribute("total_chunks_retrieved", len(all_chunks))
 
             # 2. Context Construction
             with get_tracer().start_as_current_span("context_construction_phase"):
+                all_uris = [c[2] for c in all_chunks]
                 if persona == "researcher" and all_uris:
                     # Extract unique file names from URIs
                     file_names = list(set([uri.split("/")[-1] for uri in all_uris]))
@@ -228,8 +229,14 @@ class GCPRagAgent:
                     yield {"status": "📖 Analyzing relevant documents..."}
 
                 synthetic_context = ""
-                if all_filtered_texts:
-                    synthetic_context = "OFFICIAL SOURCE CONTEXT:\n\n" + "\n\n---\n\n".join(all_filtered_texts)
+                if all_chunks:
+                    context_parts = []
+                    for c_id, text, _ in all_chunks:
+                        # Label chunks with their source corpus ID for hierarchical grounding
+                        source_label = "Magisterium" if "magisterium" in c_id.lower() else "Stewardship"
+                        context_parts.append(f"[SOURCE: {source_label} Corpus]\n{text}")
+                    
+                    synthetic_context = "OFFICIAL SOURCE CONTEXT:\n\n" + "\n\n---\n\n".join(context_parts)
                 
                 # 3. Prompt Preparation
                 contents = []
@@ -287,7 +294,7 @@ class GCPRagAgent:
                 yield {"status": "✍️ Synthesizing response..."}
 
                 system_instruction_extra = ""
-                if not all_filtered_texts and not (file_uri and os.path.exists(file_uri)):
+                if not all_chunks and not (file_uri and os.path.exists(file_uri)):
                     # Pastoral refusal if no context found after filtering
                     system_instruction_extra = "IMPORTANT: No relevant official documents were found matching the user's requested type. Inform the user gracefully that our official resources don't cover this topic in the requested format."
 
