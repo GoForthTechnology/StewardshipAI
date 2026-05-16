@@ -19,23 +19,6 @@ The system SHALL provide a web-based chat interface (built in Angular) allowing 
 - **WHEN** an authenticated user on a mobile device enters a question into the chat input
 - **THEN** the system SHALL display the user's message and ensure the input area remains accessible and visible even when the mobile keyboard is active.
 
-### Requirement: Branded Portal Layout
-The web interface SHALL use a modern component-based layout (Angular) to implement a high-fidelity, responsive design that is clean, professional, and organizationally neutral, adapting its structure based on the user's device.
-
-#### Scenario: Displaying Generic Branding
-- **WHEN** the application loads
-- **THEN** it SHALL show the "Stewardship Portal" title and generic branding elements, with NO mention of any specific diocese.
-
-#### Scenario: Header Title Display
-- **WHEN** the application loads
-- **THEN** the header SHALL show "Stewardship Portal" with the Dove icon.
-
-#### Scenario: Displaying Responsive Layout
-- **WHEN** the application loads
-- **THEN** it SHALL detect the screen size and display either a permanent sidebar (desktop) or a collapsible drawer with a top header (mobile).
-- **AND** the sidebar SHALL include a dedicated section for "Recent Chats".
-- **AND** technical extension filters in the sidebar SHALL only be visible when the "Academic / Researcher" persona is active.
-
 ### Requirement: Persona Selection and Display
 The web interface SHALL provide a clear mechanism for users to select whether they are interacting as a "Parishioner", a "Priest/Leader", or an "Academic / Researcher" located in the chat header.
 
@@ -109,3 +92,24 @@ The web interface SHALL allow users to browse and select from their list of loca
 - **WHEN** a user clicks a chat title in the "Recent Chats" sidebar
 - **THEN** the interface SHALL load that specific session's history and set the current persona context accordingly.
 
+## MODIFIED Requirements
+
+### Requirement: Branded Portal Layout
+The web interface SHALL use a modern component-based layout (Angular) to implement a high-fidelity, responsive design that is clean, professional, and organizationally neutral, adapting its structure based on the user's device.
+
+#### Scenario: Displaying App Branding
+- **WHEN** the application loads
+- **THEN** it SHALL show the "Stewardship Portal" title and Dove favicon/branding elements, with NO mention of any specific diocese.
+
+#### Scenario: Displaying Responsive Layout
+- **WHEN** the application loads
+- **THEN** it SHALL detect the screen size and display either a permanent sidebar (desktop) or a collapsible drawer with a top header (mobile).
+
+## ADDED Requirements
+
+### Requirement: Custom Brand Favicon
+The web interface SHALL use the Dove icon (consistent with the portal branding) as the site favicon.
+
+#### Scenario: Verifying Favicon
+- **WHEN** the application is loaded in a browser tab
+- **THEN** the browser SHALL display the Dove icon in the tab and bookmark bar.
