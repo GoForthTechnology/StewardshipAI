@@ -1,8 +1,14 @@
 import asyncio
 import json
 import logging
+import os
 import unittest
 from unittest.mock import MagicMock, AsyncMock, patch
+
+# Set dummy env vars before importing anything that might trigger get_config()
+os.environ.setdefault("GCP_PROJECT_ID", "test-project")
+os.environ.setdefault("GCP_RAG_CORPUS_ID", "test-corpus")
+
 from rag_agent import GCPRagAgent
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -17,6 +23,20 @@ class TestObservabilityMock(unittest.IsolatedAsyncioTestCase):
         self.provider.add_span_processor(SimpleSpanProcessor(self.exporter))
         trace.set_tracer_provider(self.provider)
         self.tracer = trace.get_tracer("stewardship-ai")
+
+        # Global mock for config to avoid initialization errors
+        self.mock_config = MagicMock()
+        self.mock_config.project_id = "test-project"
+        self.mock_config.location = "us-south1"
+        self.mock_config.rag_corpus_id = "test-corpus"
+        self.mock_config.diocese_name = "Stewardship AI Portal"
+        self.mock_config.api_key = "test-key"
+        
+        self.config_patcher = patch('rag_agent.get_config', return_value=self.mock_config)
+        self.config_patcher.start()
+
+    def tearDown(self):
+        self.config_patcher.stop()
 
     async def test_Scenario_Request_with_Custom_Corpus_List_and_Scenario_Trace_Generation_and_Scenario_Logging_Retrieval_Metrics_and_Scenario_Instrumenting_Outgoing_Requests_and_Scenario_Retrieving_chunks_via_REST(self):
         """

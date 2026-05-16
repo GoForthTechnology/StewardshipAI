@@ -14,6 +14,10 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      GCP_PROJECT_ID: "dummy-project"
+      GCP_RAG_CORPUS_ID: "dummy-corpus"
+      GCP_LOCATION: "us-south1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,7 +33,7 @@ jobs:
         run: pip install -r requirements.txt pytest httpx opentelemetry-api opentelemetry-sdk pypdf pydantic-settings google-genai google-auth
 
       - name: Run Backend Tests
-        run: python3 -m pytest test_api.py test_rag_agent.py
+        run: python3 -m pytest test_api.py test_rag_agent.py test_quality.py
 
       - name: Run Traceability Audit
         run: python3 verify_coverage.py --ci

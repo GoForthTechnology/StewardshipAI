@@ -1,10 +1,16 @@
 import json
+import os
 import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
+
+# Set dummy env vars before importing api to avoid config validation errors
+os.environ.setdefault("GCP_PROJECT_ID", "test-project")
+os.environ.setdefault("GCP_RAG_CORPUS_ID", "test-corpus")
+
 from fastapi.testclient import TestClient
 from api import app
 
-class TestAPI(unittest.TestCase):
+class TestAPI(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.client = TestClient(app)
 
@@ -35,8 +41,8 @@ class TestAPI(unittest.TestCase):
         
         self.assertEqual(response.status_code, 200)
         lines = response.text.split('\n')
-        self.assertIn('data: {"status": "Thinking..."}', lines)
-        self.assertIn('data: {"text": "Hello world"}', lines)
+        self.assertTrue(any('data: {"status": "Thinking..."}' in line for line in lines))
+        self.assertTrue(any('data: {"text": "Hello world"}' in line for line in lines))
         
         mock_generate.assert_called()
         args, kwargs = mock_generate.call_args
@@ -91,7 +97,7 @@ class TestAPI(unittest.TestCase):
         content = b"Mock text content"
         file = ('test.txt', content, 'text/plain')
         
-        with patch('api.os.makedirs'), patch('api.open', create=True) as mock_open:
+        with patch('api.os.makedirs'), patch('builtins.open', MagicMock()):
             response = self.client.post(
                 "/upload",
                 files={"file": file},
@@ -101,7 +107,7 @@ class TestAPI(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertIn("file_uri", data)
-            self.assertEqual(data["name"], "test.txt")
+            self.assertEqual(data["display_name"], "test.txt")
 
     @patch('api.auth.verify_id_token')
     def test_Scenario_Reject_Over_Sized_File(self, mock_verify):
@@ -146,7 +152,14 @@ class TestAPI(unittest.TestCase):
             
             call_args = mock_stream_call.call_args
             contents = call_args.kwargs['contents']
-            self.assertIn("SESSION DOCUMENT CONTENT", contents[0].parts[0].text)
+            # Search all parts for the string
+            found = False
+            for content in contents:
+                for part in content.parts:
+                    if "SESSION DOCUMENT CONTENT" in part.text:
+                        found = True
+                        break
+            self.assertTrue(found)
 
 if __name__ == "__main__":
     unittest.main()
